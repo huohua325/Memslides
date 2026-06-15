@@ -1,0 +1,14 @@
+suite_id: smoke_minimal
+description: Minimal one-deck smoke suite for the public MemSlides package.
+max_parallel: 1
+experiments:
+  - experiment_id: smoke_one_page
+    instruction: "Create a one-slide plain title slide for MemSlides. Use only concise text, simple shapes, and a clean layout; do not create charts, diagrams, flowcharts, images, SVG assets, or generated visuals."
+    num_pages: 1
+    max_rounds: 0
+    memory_enabled: false
+    language: en
+    require_pptx_export: true
+    extra_info:
+      web_research_mode: disabled
+      image_generation_mode: off

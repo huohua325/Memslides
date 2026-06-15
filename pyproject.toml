@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memslides"
+version = "1.0.0"
+description = "Memory-aware presentation generation runtime"
+requires-python = ">=3.10"
+dependencies = [
+  "beautifulsoup4",
+  "docker",
+  "fake-useragent",
+  "fastmcp",
+  "filelock",
+  "jinja2",
+  "json-repair",
+  "jsonlines",
+  "markdownify",
+  "openai",
+  "httpx",
+  "aiohttp",
+  "aiosqlite",
+  "colorlog",
+  "numpy",
+  "pillow",
+  "playwright==1.60.0",
+  "PyMuPDF",
+  "pypdf",
+  "pydantic",
+  "python-pptx",
+  "pyyaml",
+  "trafilatura",
+  "vl-convert-python",
+]
+
+[project.optional-dependencies]
+web = [
+  "fastapi",
+  "uvicorn",
+  "python-multipart",
+  "cryptography",
+]
+research = [
+  "chromadb",
+  "bm25s",
+  "jieba",
+  "PyStemmer",
+  "markitdown",
+]
+
+[project.scripts]
+memslides = "memslides.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+memslides = [
+  "mcp.json",
+  "mcp.json.example",
+  "memslides*.yaml",
+  "roles/*.yaml",
+  "presentation_export/*.js",
+  "presentation_export/package.json",
+  "experiment/suites/*.yml",
+  "experiment/suites/*.yaml",
+  "memory/core/*.sql",
+  "memory/template_guides/*.md",
+  "memory/template_guides/prompts/*.j2",
+  "web/static/*",
+  "web/static/assets/*",
+]

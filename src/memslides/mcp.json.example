@@ -1,0 +1,68 @@
+[
+  {
+    "name": "memslides_document_tools",
+    "description": "Document conversion tools",
+    "command": "python",
+    "args": ["-m", "memslides.tools.document_tools", "$MEMSLIDES_WORKSPACE"],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "$MEMSLIDES_LOG_LEVEL"
+    }
+  },
+  {
+    "name": "memslides_deck_tools",
+    "description": "Deck editing, inspection, patching, and export tools",
+    "command": "python",
+    "args": ["-m", "memslides.tools.deck_tools", "$MEMSLIDES_WORKSPACE"],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "$MEMSLIDES_LOG_LEVEL",
+      "MEMSLIDES_CONFIG_FILE": "$MEMSLIDES_CONFIG_FILE"
+    },
+    "exclude_tools": ["query_slide_layout", "query_template_shell", "query_layout_geometry", "query_image_info"]
+  },
+  {
+    "name": "memslides_template_tools",
+    "description": "Template layout guidance tools",
+    "command": "python",
+    "args": ["-m", "memslides.tools.deck_tools", "$MEMSLIDES_WORKSPACE"],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "$MEMSLIDES_LOG_LEVEL",
+      "MEMSLIDES_CONFIG_FILE": "$MEMSLIDES_CONFIG_FILE"
+    },
+    "keep_tools": [
+      "list_template_layouts",
+      "recommend_template_layout",
+      "query_slide_layout",
+      "query_layout_geometry",
+      "query_image_info"
+    ]
+  },
+  {
+    "name": "memslides_asset_tools",
+    "description": "Asset generation, captioning, and document summary tools",
+    "command": "python",
+    "args": ["-m", "memslides.tools.asset_tools", "$MEMSLIDES_WORKSPACE"],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "$MEMSLIDES_LOG_LEVEL",
+      "MEMSLIDES_CONFIG_FILE": "$MEMSLIDES_CONFIG_FILE"
+    }
+  },
+  {
+    "name": "memslides_search_tools",
+    "description": "Web and academic search tools",
+    "command": "python",
+    "args": ["-m", "memslides.tools.search_tools", "$MEMSLIDES_WORKSPACE"],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "$MEMSLIDES_LOG_LEVEL"
+    }
+  },
+  {
+    "name": "memslides_memory_tools",
+    "description": "Memory system MCP tools (rule search, save, experience query)",
+    "command": "python",
+    "args": ["-m", "memslides.tools.memory_tools", "$MEMSLIDES_WORKSPACE"],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "$MEMSLIDES_LOG_LEVEL",
+      "MEMSLIDES_CONFIG_FILE": "$MEMSLIDES_CONFIG_FILE"
+    }
+  }
+]
