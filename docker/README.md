@@ -92,3 +92,4 @@ only when you intentionally want to clear local state.
 
 - GitHub: https://github.com/huohua325/Memslides
 - Project page: https://memslides.github.io/
+- Website: https://memslides.com/
