@@ -1,0 +1,40 @@
+suite_id: three_round_revision_table_smoke
+description: Public example suite with one deck generation followed by three forced local revision rounds.
+max_parallel: 1
+experiments:
+  - experiment_id: public_three_round_revision_example
+    user_id: public_example_user
+    instruction: "Create a 3-slide concise research-style deck about MemSlides. Slide 1 should state the motivation, slide 2 should explain the memory architecture, and slide 3 should summarize localized revision benefits. Use clear titles, compact bullets, and simple visual structure."
+    num_pages: 3
+    max_rounds: 3
+    force_all_rounds: true
+    memory_enabled: true
+    memory_mode: tool_only
+    memory_artifact_trace: true
+    language: en
+    require_pptx_export: true
+    user_model_profile:
+      strictness: 0.95
+      focus: ["layout", "content", "visual"]
+      style: directive
+      language: en
+      satisfaction_threshold: 0.99
+      persona: "A rigorous paper reviewer checking whether the deck is specific, visually scannable, and revision-safe."
+    user_model_strategy_config:
+      scripted_rounds:
+        - feedback: "Round 1: tighten Slide 1 so the title states the main contribution directly, and reduce generic wording in the motivation bullets."
+          score: 0.42
+          satisfied: false
+        - feedback: "Round 2: revise Slide 2 so the three memory types are visually separated and the data flow between them is easier to scan."
+          score: 0.55
+          satisfied: false
+        - feedback: "Round 3: revise Slide 3 so localized revision benefits are stated as concrete before-and-after claims, not abstract promises."
+          score: 0.68
+          satisfied: false
+    extra_info:
+      model: GPT-5
+      main_table_model: GPT-5
+      scenario_id: three_round_revision_table_smoke
+      memory_bucket_id: three_round_revision_table_smoke
+      web_research_mode: disabled
+      image_generation_mode: off
