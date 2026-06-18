@@ -1,0 +1,67 @@
+## 📋 Template Reference Guide
+> 模板: {{ template_name }} | 比例: {{ aspect_ratio }} | {{ slide_count }}页
+
+**⚠️ 重要提示**: 用户已选择此模板作为设计参考，**无需再询问模板相关问题**。直接使用下方布局信息进行内容规划。
+
+{% if task_section %}
+### 你的任务
+{{ task_section }}
+
+{% endif %}
+### 内容规划指南
+
+#### 信息密度: `{{ info_density }}` — {{ density_name }}
+> {{ density_desc }}
+
+{% if narrative_style %}
+#### 叙事风格: `{{ narrative_style }}` — {{ style_name }}
+> {{ style_desc }}
+
+{% endif %}
+{% if typical_sections %}
+#### 章节结构
+> {{ typical_sections_display }}
+
+**规则**: 大纲必须包含以上章节类型，不可添加模板不支持的章节
+
+{% endif %}
+{% if max_bullets or bullet_style %}
+#### 列表规范
+{% if max_bullets %}- 每页要点上限: **{{ max_bullets }}** 条（超过需拆分）{% endif %}
+{% if bullet_style %}- 列表风格: **{{ bullet_style_display }}**{% endif %}
+
+{% endif %}
+### 模板布局空间
+> 语言: `{{ language }}` ({{ lang_display }}) | 根据内容需求选择合适的布局
+{% if total_text_capacity %}
+> 每种内容布局约可容纳 {{ total_text_capacity }} 字
+{% endif %}
+
+{% if total_image_demand %}
+#### 图片需求
+模板共需要约 {{ total_image_demand }} 张内容图片，请在搜集资料时注意收集相关图片素材。
+
+{% endif %}
+{% if functional_layouts %}
+#### 功能页
+{% for layout in functional_layouts %}
+- `{{ layout.name }}` ({{ layout.display }}) — {{ layout.text_count }}文本+{{ layout.image_count }}图片
+{% endfor %}
+
+{% endif %}
+{% if content_layouts %}
+#### 内容页布局
+> 选择布局时考虑：内容类型、元素数量、图文比例
+
+{% for layout in content_layouts %}
+- `{{ layout.name }}`
+  参考页: {{ layout.slides }} | {{ layout.text_count }}文本+{{ layout.image_count }}图片
+{% endfor %}
+
+{% endif %}
+### 输出格式要求
+
+- 只输出 Markdown 稿件本身，不要附加 `LAYOUT_MAPPING`、YAML、JSON 或额外控制块
+- 页面之间继续使用 `---` 分隔
+- 如果某页应使用真实图片/表格，请直接在对应页面正文中引用本地绝对路径
+- 页面标题、正文层次、素材引用必须清晰，便于后续运行时基于稿件自动生成 `layout_mapping.yaml`

@@ -1,0 +1,15 @@
+{
+  "name": "@memslides/presentation-export",
+  "version": "2.0.1",
+  "description": "Structured DOM to editable PPTX export runtime for MemSlides.",
+  "private": true,
+  "type": "commonjs",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "fast-glob": "^3.3.3",
+    "minimist": "^1.2.8",
+    "playwright": "1.60.0",
+    "pptxgenjs": "^4.0.1",
+    "sharp": "^0.34.5"
+  }
+}

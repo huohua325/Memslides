@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="146" height="32" viewBox="0 0 146 32" role="img" aria-label="Paper arXiv">
+  <title>Paper arXiv</title>
+  <defs>
+    <linearGradient id="paper-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <linearGradient id="paper-chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="145" height="31" rx="10" fill="url(#paper-bg)" stroke="#ef4444" stroke-opacity=".72" />
+  <rect x="1.5" y="1.5" width="143" height="5" rx="10" fill="#ffffff" opacity=".05" />
+  <rect x="8" y="4" width="24" height="24" rx="8" fill="url(#paper-chip)" />
+  <g transform="translate(11 7) scale(0.75)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 7v14" />
+    <path d="M16 12h2" />
+    <path d="M16 8h2" />
+    <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+    <path d="M6 12h2" />
+    <path d="M6 8h2" />
+  </g>
+  <text x="40" y="20" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">Paper</text>
+  <text x="79" y="20" fill="#fca5a5" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="800">arXiv</text>
+</svg>

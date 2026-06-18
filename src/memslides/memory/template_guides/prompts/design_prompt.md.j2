@@ -1,0 +1,105 @@
+## 🎨 Template Design Specifications
+> 模板: {{ template_name }} | 比例: {{ aspect_ratio }} | {{ slide_count }}页
+
+**⚠️ 重要提示**: 用户已选择此模板。请遵守 reference-only 模板契约：参考大纲结构、页面类型、文字密度、图文比例、slot 几何、标题节奏、配色和字体气质；不要复刻模板背景、壳层图片、旧样例页或共享模板缓存。内容页以可读性和真实资产承载为先，不要询问用户关于模板或风格的问题。
+
+{% if layout_rules %}
+### 布局选择规则
+{{ layout_rules }}
+
+{% endif %}
+{% if layout_summary_table %}
+### 可用布局摘要
+{{ layout_summary_table }}
+
+{% endif %}
+{% if template_reference_summary %}
+### 模板 Reference 摘要
+{{ template_reference_summary }}
+
+- 生成每页时参考模板的 page archetype、slot 几何、文字密度、图文比例、标题节奏、配色和字体气质。
+- 不要引用模板背景图、壳层图片、共享模板缓存或旧样例图片；需要装饰时用 CSS/HTML 自行生成模板风格的轻量几何元素。
+- 正文、公式、表格、caption 必须放在安全 readable surface 上；标题页也必须保证可读，不允许浅色文字落在浅色背景。
+- 每页 HTML 开头写审计注释：`<!-- template-reference-use: layout+density+style reason: ... -->`。
+
+{% endif %}
+### 视觉约束
+
+{% if color_primary or color_background or color_surface or color_primary_text or color_inverse_text %}
+#### 语义颜色规范
+{% if color_background %}- 页面参考 background: `{{ color_background }}`{% endif %}
+{% if color_surface %}- 内容承载 surface: `{{ color_surface }}`{% endif %}
+{% if color_primary_text %}- surface 正文 primary_text: `{{ color_primary_text }}`{% endif %}
+{% if color_inverse_text %}- 反白 inverse_text: `{{ color_inverse_text }}`{% endif %}
+{% if color_muted_text %}- 次级文本 muted_text: `{{ color_muted_text }}`{% endif %}
+{% if color_border %}- 边框/分隔 border: `{{ color_border }}`{% endif %}
+{% if color_primary %}- 标题/重点 primary: `{{ color_primary }}`{% endif %}
+{% if color_secondary %}
+- 次要元素: `{{ color_secondary }}`
+{% endif %}
+{% if color_accent %}
+- 高亮标记: `{{ color_accent }}`
+{% endif %}
+{% if color_text %}
+- 兼容 text: `{{ color_text }}`（新页面优先使用 primary_text/inverse_text）
+{% endif %}
+{% if color_additional %}
+- 辅助色: {{ color_additional }}
+{% endif %}
+- 自适应模式允许从模板色系派生安全浅色内容面；正文、公式、表格、caption 必须保持高对比可读。
+{% if adaptive_surface_note %}
+- {{ adaptive_surface_note }}
+{% endif %}
+
+{% endif %}
+{% if title_font or body_font %}
+#### 字体规范
+{% if title_font %}- 标题: {{ title_font }} {{ title_size }}pt
+  - 副标题: {{ subtitle_size }}pt{% endif %}
+{% if body_font %}- 正文: {{ body_font }} {{ body_size }}pt
+  - 注释/标签: {{ caption_size }}pt{% endif %}
+{% if line_height and line_height != 1.5 %}- 行高: {{ line_height }}{% endif %}
+
+{% endif %}
+{% if spacing_margin or spacing_padding or spacing_gap %}
+#### 间距规范
+{% if spacing_margin %}- 页边距: {{ spacing_margin }}{% endif %}
+{% if spacing_padding %}- 内边距: {{ spacing_padding }}{% endif %}
+{% if spacing_gap %}- 元素间距: {{ spacing_gap }}{% endif %}
+
+{% endif %}
+{% if chart_default_type or chart_color_scheme %}
+#### 图表风格规范
+{% if chart_default_type %}- 默认图表类型: `{{ chart_default_type }}`{% endif %}
+{% if chart_color_scheme %}- 图表配色: {{ chart_color_scheme }}{% endif %}
+- 使用模板语义配色；若图表在深色背景参考上不可读，放入安全 surface 面板
+
+{% endif %}
+{% if image_rules %}
+### 图片处理规则
+{{ image_rules }}
+
+{% endif %}
+{% if decorative_images %}
+### 装饰图片（不可替换）
+{{ decorative_images }}
+
+{% endif %}
+### 每页生成流程
+1. 读取 `page_execution_plan.md` 作为唯一 work queue，再读取 `layout_mapping.yaml`，获取该页的 canonical layout 名称与 slot_fill_plan
+2. **必须**调用 `query_slide_layout(layout_name)` 获取元素详情和字符限制
+   - ⚠️ **未查询布局直接生成的页面将被标记为不合规（MUST_QUERY），你必须重新查询后重新生成**
+   - 同一个 canonical layout 查询一次后可复用，不要反复查询同一 layout
+3. 如需精确坐标，调用 `query_layout_geometry(layout_name)`（可选）；不要引用模板原始背景资源、共享模板缓存或旧样例图片
+4. 按 canonical slot contract 和 reference recipe 生成新的 HTML，保持布局主要意图、密度和风格倾向
+   - 在 HTML 开头添加注释：`<!-- template-layout: {layout_name} -->`
+   - 在 HTML 开头添加注释：`<!-- template-reference-use: layout+density+style reason: ... -->`
+   - 每个模板元素用 `<div data-element="元素名称">` 包裹，例如：
+     ```html
+     <div data-element="title"><h1>标题内容</h1></div>
+     <div data-element="body"><p>正文内容</p></div>
+     <div data-element="image"><img src="..." /></div>
+     ```
+   - 元素名称尽量与 `query_slide_layout` 返回的元素清单一致
+   - adaptive 模式可增加安全 surface/panel 承载正文或真实图表资产
+5. 调用 `write_html_file` 保存，然后 `inspect_slide` 检查质量

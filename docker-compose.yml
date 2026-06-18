@@ -1,0 +1,17 @@
+services:
+  memslides:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: ${MEMSLIDES_DOCKER_IMAGE:-huohua325/memslides:v2.0.1}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MEMSLIDES_DATA_ROOT: /app/.cache/memslides
+      MEMSLIDES_WORKSPACE_BASE: /app/.cache/memslides/experiments
+      MEMSLIDES_DEFAULT_CACHE_ROOT: /app/.cache/memslides
+      MEMSLIDES_PPTX_EXPORT_AUTO_INSTALL: "0"
+      MEMSLIDES_PLAYWRIGHT_AUTO_INSTALL: "0"
+    volumes:
+      - ./.memslides:/app/.cache/memslides

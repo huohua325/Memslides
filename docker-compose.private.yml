@@ -1,0 +1,11 @@
+services:
+  memslides:
+    environment:
+      MEMSLIDES_CONFIG_FILE: /run/secrets/memslides.private.yaml
+    volumes:
+      - type: bind
+        source: ./memslides.private.yaml
+        target: /run/secrets/memslides.private.yaml
+        read_only: true
+        bind:
+          create_host_path: false

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="156" height="32" viewBox="0 0 156 32" role="img" aria-label="Demo Video">
+  <title>Demo Video</title>
+  <defs>
+    <linearGradient id="demo-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <linearGradient id="demo-chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14b8a6" />
+      <stop offset="100%" stop-color="#0f766e" />
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="155" height="31" rx="10" fill="url(#demo-bg)" stroke="#14b8a6" stroke-opacity=".72" />
+  <rect x="1.5" y="1.5" width="153" height="5" rx="10" fill="#ffffff" opacity=".05" />
+  <rect x="8" y="4" width="24" height="24" rx="8" fill="url(#demo-chip)" />
+  <g transform="translate(11 7) scale(0.75)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z" fill="#ffffff" stroke="none" />
+    <circle cx="12" cy="12" r="10" />
+  </g>
+  <text x="40" y="20" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">Demo</text>
+  <text x="83" y="20" fill="#99f6e4" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="800">Video</text>
+</svg>

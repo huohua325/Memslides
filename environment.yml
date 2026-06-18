@@ -1,0 +1,9 @@
+name: memslides
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - nodejs=20
+  - pip
+  - pip:
+      - vl-convert-python
