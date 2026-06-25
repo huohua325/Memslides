@@ -31,6 +31,17 @@
 <table>
   <tr>
     <td width="150" align="center">
+      <strong>2026-06-25</strong><br>
+      <sub>GitHub milestone</sub>
+    </td>
+    <td>
+      <strong>&#11088; MemSlides crossed 100 GitHub stars.</strong><br>
+      Thank you for helping the project reach its first community star milestone:
+      <a href="https://github.com/huohua325/Memslides/stargazers">see stargazers</a>.
+    </td>
+  </tr>
+  <tr>
+    <td width="150" align="center">
       <strong>2026-06-24</strong><br>
       <sub>Community milestone</sub>
     </td>
