@@ -31,6 +31,17 @@
 <table>
   <tr>
     <td width="150" align="center">
+      <strong>2026-06-26</strong><br>
+      <sub>Product milestone</sub>
+    </td>
+    <td>
+      <strong>&#128640; The MemSlides live demo crossed 50 verified users.</strong><br>
+      Thank you to everyone trying the demo and helping us improve the personalized slide-generation workflow:
+      <a href="https://memslides.com/">try the live demo</a>.
+    </td>
+  </tr>
+  <tr>
+    <td width="150" align="center">
       <strong>2026-06-25</strong><br>
       <sub>GitHub milestone</sub>
     </td>
