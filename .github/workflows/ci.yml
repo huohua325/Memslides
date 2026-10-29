@@ -42,5 +42,8 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Check PPTX export runtime
         run: npm run check:pptx-export
