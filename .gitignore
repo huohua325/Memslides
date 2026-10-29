@@ -8,6 +8,8 @@
 # Local runtime state
 .memslides/
 .codex_tmp/
+.tools.json
+tool_specs.json
 .playwright-browsers/
 workspace/
 /memory/

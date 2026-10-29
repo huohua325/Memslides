@@ -321,6 +321,7 @@ class AgentEnv:
             return
         tool_names = ", ".join(sorted(self._tools_dict))
         debug("Caching %d tool specs at %s: %s", len(self._tools_dict), TOOL_CACHE, tool_names)
+        TOOL_CACHE.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "server_tools": dict(self._server_tools),
             "tool_specs": list(self._tools_dict.values()),
