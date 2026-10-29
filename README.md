@@ -37,7 +37,7 @@
     <td>
       <strong>&#11088; MemSlides crossed 1,000 GitHub stars.</strong><br>
       Thank you for helping MemSlides reach this open-source community milestone:
-      <a href="https://github.com/huohua325/Memslides/stargazers">see stargazers</a>.
+      <a href="https://memslides.com/">visit the demo website</a>.
     </td>
   </tr>
   <tr>
