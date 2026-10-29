@@ -860,7 +860,7 @@ async def run_generation_flow(
         except Exception as e:
             logger.warning(f"Failed to query historical experiences (non-fatal): {e}")
 
-    # Stage 5: 模板处理入口（设计文档 05 要求）
+
     template_profile = None
     guide_builder = None
     template_conflicts = []
@@ -922,7 +922,7 @@ async def run_generation_flow(
             matched_history_intent="",
         )
         try:
-            # 方式 1: 复用已存储的模板档案
+
             if request.template_id and self.memory_system:
                 store = getattr(self.memory_system, 'template_store', None)
                 if store:
@@ -930,14 +930,14 @@ async def run_generation_flow(
                     if template_profile:
                         info(f"Loaded stored template profile: {template_profile.name}")
 
-            # 方式 2: 分析新上传的模板
+
             if not template_profile and request.template:
                 template_profile = await self._analyze_template(request.template)
                 if template_profile:
                     layout_count = len([k for k in template_profile.slide_induction.keys() if k not in ("functional_keys", "language", "layout_capabilities")])
                     info(f"Template profile extracted: {layout_count} layouts")
 
-            # 冲突检测（Stage 7: 使用 TemplateGuideBuilder）
+
             if template_profile:
                 guide_builder, template_conflicts = self._activate_template_profile(
                     request, template_profile
@@ -1046,7 +1046,7 @@ async def run_generation_flow(
         if exp_writer and _run_failure_ids:
             await exp_writer.mark_reused(_run_failure_ids)
 
-        # Stage 7: 注入模板档案到 Researcher Agent（使用 TemplateGuideBuilder）
+
         if template_profile and guide_builder:
             try:
                 template_prompt = guide_builder.build_for_research()
@@ -1062,7 +1062,7 @@ async def run_generation_flow(
                     )
                     info(f"Injected template prompt to Researcher Agent ({len(template_prompt)} chars)")
 
-                    # 保存注入的模板 prompt 作为中间产物（便于调试验证）
+
                     _template_prompt_file = self.workspace / ".history" / "template_prompt_research.md"
                     _template_prompt_file.parent.mkdir(parents=True, exist_ok=True)
                     _template_prompt_file.write_text(template_prompt, encoding="utf-8")
@@ -1158,7 +1158,7 @@ async def run_generation_flow(
                 self.template_planner._tool_result_callback = _make_callback(_orchestrator)
 
             # Inject global DB failures into TemplatePlanner
-            # NOTE: Stage 8 移除 research_lessons 跨 Agent 注入，pipeline 经验不适用于 DeckDesigner 类任务
+
             _ppt_extra = ""
             if memory_context:
                 _ppt_extra += f"\n\n{memory_context}"
@@ -1337,7 +1337,7 @@ async def run_generation_flow(
             except Exception as e:
                 logger.warning(f"Workspace context injection to DeckDesigner failed: {e}")
 
-            # Stage 7: 注入模板档案到 DeckDesigner Agent（使用 TemplateGuideBuilder）
+
             template_runtime_mode = str(
                 getattr(getattr(self, "_template_runtime_state", None), "mode", "") or ""
             )
@@ -1361,7 +1361,7 @@ async def run_generation_flow(
                         )
                         info(f"Injected template prompt to DeckDesigner Agent ({len(template_prompt)} chars)")
 
-                        # 保存注入的模板 prompt 作为中间产物（便于调试验证）
+
                         _template_prompt_file = self.workspace / ".history" / "template_prompt_design.md"
                         _template_prompt_file.parent.mkdir(parents=True, exist_ok=True)
                         _template_prompt_file.write_text(template_prompt, encoding="utf-8")
@@ -1544,8 +1544,8 @@ async def run_generation_flow(
                         f"Non-template design plan reminder injection failed: {e}"
                     )
 
-            # Stage 8.5: 从模板确定性生成 design_plan.md（无 LLM，纯代码拼装）
-            # 让 DeckDesigner Agent 有一个预设的设计方案文件可读取，避免自创颜色/字体
+
+
             _design_plan_path = self.workspace / "design_plan.md"
             _layout_mapping_path = self.workspace / "layout_mapping.yaml"
             if template_profile and guide_builder:
@@ -1669,7 +1669,7 @@ async def run_generation_flow(
                             e,
                         )
 
-            # Stage 7: 设置 MCP Tool 上下文（供 query_slide_layout 等工具使用）
+
             if (
                 template_profile
                 and guide_builder
@@ -1678,17 +1678,17 @@ async def run_generation_flow(
                 try:
                     from memslides.tools.template_tools import set_template_context
                     set_template_context(guide_builder)
-                    # 序列化到文件，供 MCP 子进程读取（contextvars 不跨进程）
+
                     _profile_file = self.workspace / ".template_profile.json"
                     _profile_file.write_text(template_profile.to_json(), encoding="utf-8")
-                    # W4: 通过环境变量传递 workspace 绝对路径，避免依赖 cwd
+
                     import os as _os
                     _os.environ["MEMSLIDES_WORKSPACE"] = str(self.workspace)
                     info("Template MCP context set for DeckDesigner Agent (+ cross-process file + env)")
                 except Exception as e:
                     logger.warning(f"Failed to set template MCP context: {e}")
 
-                # 确保模板工具注册到 DeckDesigner Agent（MCP 子进程注册的工具可能未被客户端拉取）
+
                 _template_tool_names = [
                     "list_template_layouts",
                     "recommend_template_layout",

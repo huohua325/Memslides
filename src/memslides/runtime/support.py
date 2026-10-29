@@ -5450,11 +5450,7 @@ def enforce_hard_title_prefix_preferences(
     *,
     user_message: str = "",
 ) -> list[dict[str, Any]]:
-    """Deterministically enforce existing-slide title-prefix WM rules before export.
-
-    This intentionally handles only concrete prefix rules such as title.prefix =
-    "结论：". Fuzzy language-style preferences remain non-blocking observations.
-    """
+    """Implementation details."""
     prefixes: list[str] = []
     for spec in rule_specs or []:
         prefix = _title_prefix_from_rule_spec(spec)

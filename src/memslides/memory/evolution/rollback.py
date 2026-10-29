@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class RollbackManager:
-    """回滚管理器：支持单页级别的PPT回滚（含磁盘持久化）"""
+    """Implementation details."""
 
     CHECKPOINT_DIR_NAME = ".rollback"
 
@@ -21,12 +21,12 @@ class RollbackManager:
         self._checkpoint_dir: Path | None = None
 
     def set_checkpoint_dir(self, workspace: Path) -> None:
-        """设置磁盘持久化目录（修改开始前调用）"""
+        """Implementation details."""
         self._checkpoint_dir = workspace / self.CHECKPOINT_DIR_NAME
         self._checkpoint_dir.mkdir(exist_ok=True)
 
     def create_checkpoint(self, slide_id: str, html_content: str) -> None:
-        """创建回滚点（修改前调用），同时写入磁盘"""
+        """Implementation details."""
         self._html_checkpoints[slide_id] = html_content
         if self._checkpoint_dir:
             try:
@@ -37,7 +37,7 @@ class RollbackManager:
                 logger.debug("Checkpoint disk write failed (non-fatal): %s", e)
 
     def load_from_disk(self, workspace: Path) -> int:
-        """从磁盘加载检查点（session 恢复时调用），返回加载数量"""
+        """Implementation details."""
         self.set_checkpoint_dir(workspace)
         loaded = 0
         if self._checkpoint_dir and self._checkpoint_dir.is_dir():
@@ -52,20 +52,20 @@ class RollbackManager:
         return loaded
 
     async def rollback(self, slide_id: str, slide_path: Path) -> bool:
-        """回滚到上一个检查点"""
+        """Implementation details."""
         if slide_id not in self._html_checkpoints:
             return False
 
-        # 恢复HTML
+
         slide_path.write_text(self._html_checkpoints[slide_id], encoding="utf-8")
 
-        # 恢复参数版本
+
         version = self.params_store.get_version_count(slide_id)
         if version >= 2:
             self.params_store.rollback(slide_id, version - 1)
 
         del self._html_checkpoints[slide_id]
-        # 删除磁盘持久化文件
+
         if self._checkpoint_dir:
             try:
                 (self._checkpoint_dir / f"{slide_id}.html").unlink(missing_ok=True)
@@ -74,11 +74,11 @@ class RollbackManager:
         return True
 
     def has_checkpoint(self, slide_id: str) -> bool:
-        """检查是否有回滚点"""
+        """Implementation details."""
         return slide_id in self._html_checkpoints
 
     def clear_checkpoint(self, slide_id: str) -> None:
-        """修改成功后清除检查点"""
+        """Implementation details."""
         self._html_checkpoints.pop(slide_id, None)
         if self._checkpoint_dir:
             try:
@@ -87,7 +87,7 @@ class RollbackManager:
                 pass
 
     def clear_all(self) -> None:
-        """清除所有检查点"""
+        """Implementation details."""
         self._html_checkpoints.clear()
         if self._checkpoint_dir and self._checkpoint_dir.is_dir():
             for f in self._checkpoint_dir.glob("*.html"):

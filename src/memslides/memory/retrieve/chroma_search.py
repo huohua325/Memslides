@@ -1,12 +1,4 @@
-"""ChromaDB 向量搜索引擎 — 替代 NanoVectorDB
-
-学习 nemori + TraceMem 的设计:
-- PersistentClient 持久化
-- Per-user collection 隔离
-- 空库优雅处理 (collection.count())
-- 去重检查 (collection.get(ids=[...]))
-- 异步 embedding 适配
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -29,15 +21,7 @@ except ImportError:
 
 
 class ChromaVectorSearch:
-    """基于 ChromaDB 的向量搜索策略
-
-    特点 (学习自 nemori/TraceMem):
-    - PersistentClient 持久化
-    - Per-user collection 隔离
-    - 空库优雅处理 (collection.count())
-    - 去重检查 (collection.get(ids=[...]))
-    - 异步 embedding 适配
-    """
+    """Implementation details."""
 
     name = "chroma_vector"
 
@@ -67,7 +51,7 @@ class ChromaVectorSearch:
         self._client = None
 
     def _get_collection(self, user_id: str, mem_type: str = "episodes"):
-        """获取或创建 collection (学习 TraceMem 的线程安全模式)"""
+        """Implementation details."""
         key = f"{self._prefix}_{user_id}_{mem_type}"
         if key not in self._collections:
             self._collections[key] = self._client.get_or_create_collection(
@@ -84,24 +68,15 @@ class ChromaVectorSearch:
         metadata: dict,
         mem_type: str = "episodes",
     ) -> bool:
-        """写入单个 episode 向量 (增量)
-
-        Args:
-            mem_type: Collection 类型，用于隔离不同记忆类型
-                      "episodes" → DesignEpisode
-                      "experiences" → ExperienceTrace
-
-        Returns:
-            True=新写入, False=已存在
-        """
+        """Implementation details."""
         collection = self._get_collection(user_id, mem_type)
 
-        # 去重 (学习 nemori)
+
         existing = collection.get(ids=[episode_id])
         if existing["ids"]:
             return False
 
-        # 生成 embedding
+
         embeddings = await self._embed([document])
         embedding = embeddings[0].tolist()
 
@@ -120,11 +95,7 @@ class ChromaVectorSearch:
         user_id: str = "default",
         mem_type: str = "episodes",
     ) -> List[RetrievalResult]:
-        """向量搜索 (学习 TraceMem 的空库检查)
-
-        Args:
-            mem_type: Collection 类型，与 add_episode 保持一致
-        """
+        """Implementation details."""
         collection = self._get_collection(user_id, mem_type)
 
         if collection.count() == 0:

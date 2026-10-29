@@ -1,25 +1,4 @@
-"""
-RoundArtifactWriter — 每轮交互的中间产物写入器 (Stage 4)
-
-负责将 AgentRound 及其相关数据写入 .memory/rounds/ 目录。
-
-目录结构:
-  .memory/
-  ├── rounds/
-  │   ├── round_001/
-  │   │   ├── agent_round.json         # AgentRound 完整数据
-  │   │   ├── raw_tool_calls.json      # 压缩前原始 tool_calls
-  │   │   ├── compressed_segments.json # 压缩后 ToolCallSegment[]
-  │   │   ├── memory_injection.txt     # 注入的完整 memory prompt
-  │   │   └── agent_reasoning.txt      # Agent 推理过程
-  │   └── round_002/
-  │       └── ...
-  ├── extractions/
-  │   ├── episode/
-  │   ├── experience/
-  │   └── preference/
-  └── evolution.json
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -33,13 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class RoundArtifactWriter:
-    """每轮交互的中间产物写入器"""
+    """Implementation details."""
 
     def __init__(self, memory_dir: Path | str) -> None:
-        """
-        Args:
-            memory_dir: .memory 目录路径
-        """
+        """Implementation details."""
         self.memory_dir = Path(memory_dir)
         self.rounds_dir = self.memory_dir / "rounds"
         self.rounds_dir.mkdir(parents=True, exist_ok=True)
@@ -49,36 +25,28 @@ class RoundArtifactWriter:
         agent_round: Any,
         raw_tool_calls: list[dict] | None = None,
     ) -> Path:
-        """写入完整的 round 数据
-
-        Args:
-            agent_round: AgentRound 实例
-            raw_tool_calls: 压缩前的原始 tool_calls
-
-        Returns:
-            round 目录路径
-        """
+        """Implementation details."""
         round_id = getattr(agent_round, 'round_id', 0)
         round_dir = self.rounds_dir / f"round_{round_id:03d}"
         round_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            # 1. 写入 agent_round.json
+
             self._write_agent_round(round_dir, agent_round, raw_tool_calls)
 
-            # 2. 写入 raw_tool_calls.json (如果有)
+
             if raw_tool_calls:
                 self._write_raw_tool_calls(round_dir, round_id, raw_tool_calls)
 
-            # 3. 写入 compressed_segments.json
+
             self._write_compressed_segments(round_dir, agent_round)
 
-            # 4. 写入 memory_injection.txt
+
             memory_injection_full = getattr(agent_round, 'memory_injection_full', '')
             if memory_injection_full:
                 self._write_memory_injection(round_dir, agent_round)
 
-            # 5. 写入 agent_reasoning.txt (如果有)
+
             agent_reasoning = getattr(agent_round, 'agent_reasoning', '')
             if agent_reasoning:
                 self._write_agent_reasoning(round_dir, agent_round)
@@ -95,7 +63,7 @@ class RoundArtifactWriter:
         agent_round: Any,
         raw_tool_calls: list[dict] | None,
     ) -> None:
-        """写入 agent_round.json"""
+        """Implementation details."""
         segments = getattr(agent_round, 'segments', [])
         memory_injection_full = getattr(agent_round, 'memory_injection_full', '')
         agent_reasoning = getattr(agent_round, 'agent_reasoning', '')
@@ -150,7 +118,7 @@ class RoundArtifactWriter:
         round_id: int,
         raw_tool_calls: list[dict],
     ) -> None:
-        """写入 raw_tool_calls.json"""
+        """Implementation details."""
         total_chars = sum(
             len(str(tc.get("result", ""))) for tc in raw_tool_calls
         )
@@ -171,7 +139,7 @@ class RoundArtifactWriter:
         round_dir: Path,
         agent_round: Any,
     ) -> None:
-        """写入 compressed_segments.json"""
+        """Implementation details."""
         segments = getattr(agent_round, 'segments', [])
 
         segments_data = [
@@ -203,7 +171,7 @@ class RoundArtifactWriter:
         round_dir: Path,
         agent_round: Any,
     ) -> None:
-        """写入 memory_injection.txt"""
+        """Implementation details."""
         round_id = getattr(agent_round, 'round_id', 0)
         timestamp = getattr(agent_round, 'timestamp', datetime.now().isoformat())
         tokens = getattr(agent_round, 'memory_injection_tokens', 0)
@@ -223,7 +191,7 @@ Tokens: {tokens}
         round_dir: Path,
         agent_round: Any,
     ) -> None:
-        """写入 agent_reasoning.txt"""
+        """Implementation details."""
         round_id = getattr(agent_round, 'round_id', 0)
         agent_name = getattr(agent_round, 'agent_name', '')
         timestamp = getattr(agent_round, 'timestamp', datetime.now().isoformat())
@@ -243,7 +211,7 @@ Timestamp: {timestamp}
         raw_tool_calls: list[dict] | None,
         segments: list,
     ) -> float:
-        """计算压缩比"""
+        """Implementation details."""
         if not raw_tool_calls:
             return 0.0
 
@@ -259,26 +227,17 @@ Timestamp: {timestamp}
 
 
 class ExtractionArtifactWriter:
-    """记忆提取管线的中间产物写入器"""
+    """Implementation details."""
 
     def __init__(self, memory_dir: Path | str) -> None:
         self.memory_dir = Path(memory_dir)
         self.extractions_dir = self.memory_dir / "extractions"
         self._batch_counters: dict[str, int] = {}
-        # Stage 4 修复: 从磁盘扫描现有 batch 目录初始化计数器，避免覆盖
+
         self._init_batch_counters()
 
     def _init_batch_counters(self) -> None:
-        """从磁盘扫描现有 batch 目录/文件初始化计数器
-
-        支持的命名格式：
-        - episode: batch_000/, batch_001/
-        - experience: turn_001_trace.json, turn_002_trace.json
-        - preference: episode_xxx_input.json (不使用 batch ID)
-        - intent: turn_001_prompt.txt, turn_002_prompt.txt
-        - style_intent: turn_001_prompt.txt, turn_002_prompt.txt
-        - template_selection: turn_001_prompt.txt, turn_002_prompt.txt
-        """
+        """Implementation details."""
         for extraction_type in [
             "episode",
             "experience",
@@ -295,7 +254,7 @@ class ExtractionArtifactWriter:
             for item in type_dir.iterdir():
                 name = item.name
 
-                # batch_NNN/ 目录格式 (episode)
+
                 if item.is_dir() and name.startswith("batch_"):
                     try:
                         batch_id = int(name.split("_")[1])
@@ -303,7 +262,7 @@ class ExtractionArtifactWriter:
                     except (ValueError, IndexError):
                         pass
 
-                # turn_NNN_xxx 文件格式 (experience, intent)
+
                 elif item.is_file() and name.startswith("turn_"):
                     try:
                         turn_id = int(name.split("_")[1])
@@ -324,7 +283,7 @@ class ExtractionArtifactWriter:
         post_filter: list | None = None,
         stored_episodes: list | None = None,
     ) -> Path:
-        """写入 Episode 提取的中间产物"""
+        """Implementation details."""
         batch_id = self._next_batch_id("episode")
         batch_dir = self.extractions_dir / "episode" / f"batch_{batch_id:03d}"
         batch_dir.mkdir(parents=True, exist_ok=True)
@@ -345,17 +304,17 @@ class ExtractionArtifactWriter:
         with open(batch_dir / "llm_output.txt", "w", encoding="utf-8") as f:
             f.write(response)
 
-        # pre_filter.json (可选)
+
         if pre_filter is not None:
             with open(batch_dir / "pre_filter.json", "w", encoding="utf-8") as f:
                 json.dump(pre_filter, f, ensure_ascii=False, indent=2)
 
-        # post_filter.json (可选)
+
         if post_filter is not None:
             with open(batch_dir / "post_filter.json", "w", encoding="utf-8") as f:
                 json.dump(post_filter, f, ensure_ascii=False, indent=2)
 
-        # stored_episodes.json (可选)
+
         if stored_episodes is not None:
             with open(batch_dir / "stored_episodes.json", "w", encoding="utf-8") as f:
                 json.dump(stored_episodes, f, ensure_ascii=False, indent=2)
@@ -371,7 +330,7 @@ class ExtractionArtifactWriter:
         response: str,
         preferences: list | None = None,
     ) -> Path:
-        """写入 AtomicPreference 提取的中间产物"""
+        """Implementation details."""
         pref_dir = self.extractions_dir / "preference"
         pref_dir.mkdir(parents=True, exist_ok=True)
 
@@ -399,7 +358,7 @@ class ExtractionArtifactWriter:
         turn_id: int,
         trace_data: dict,
     ) -> Path:
-        """写入 ExperienceTrace 的中间产物"""
+        """Implementation details."""
         exp_dir = self.extractions_dir / "experience"
         exp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -416,20 +375,7 @@ class ExtractionArtifactWriter:
         response: str,
         intent_result: dict | None = None,
     ) -> Path:
-        """写入 Intent Classification 的中间产物
-
-        替代旧的 PromptLogger.log_prompt("intent_classify", ...)
-
-        Args:
-            turn_id: 轮次 ID
-            user_message: 用户消息
-            prompt: LLM prompt
-            response: LLM 响应
-            intent_result: 解析后的意图结果
-
-        Returns:
-            写入目录路径
-        """
+        """Implementation details."""
         intent_dir = self.extractions_dir / "intent"
         intent_dir.mkdir(parents=True, exist_ok=True)
 
@@ -464,7 +410,7 @@ class ExtractionArtifactWriter:
         result: dict | None = None,
         source: str = "",
     ) -> Path:
-        """写入 Style Intent Classification 的中间产物。"""
+        """Implementation details."""
         turn_id = self._next_batch_id("style_intent")
         style_dir = self.extractions_dir / "style_intent"
         style_dir.mkdir(parents=True, exist_ok=True)
@@ -502,7 +448,7 @@ class ExtractionArtifactWriter:
         candidates: list[dict] | None = None,
         usage_history: list[dict] | None = None,
     ) -> Path:
-        """写入 Template Selection 的中间产物。"""
+        """Implementation details."""
         turn_id = self._next_batch_id("template_selection")
         select_dir = self.extractions_dir / "template_selection"
         select_dir.mkdir(parents=True, exist_ok=True)
@@ -539,7 +485,7 @@ class ExtractionArtifactWriter:
         return select_dir
 
     def _next_batch_id(self, extraction_type: str) -> int:
-        """获取下一个 batch ID"""
+        """Implementation details."""
         current = self._batch_counters.get(extraction_type, -1)
         next_id = current + 1
         self._batch_counters[extraction_type] = next_id
@@ -547,7 +493,7 @@ class ExtractionArtifactWriter:
 
 
 class EvolutionTracker:
-    """记忆演化统计追踪器"""
+    """Implementation details."""
 
     def __init__(self, memory_dir: Path | str) -> None:
         self.memory_dir = Path(memory_dir)
@@ -555,7 +501,7 @@ class EvolutionTracker:
         self._data: dict = self._load_or_create()
 
     def _load_or_create(self) -> dict:
-        """加载或创建 evolution.json"""
+        """Implementation details."""
         if self.evolution_file.exists():
             try:
                 with open(self.evolution_file, "r", encoding="utf-8") as f:
@@ -579,7 +525,7 @@ class EvolutionTracker:
         new_episodes_count: int = 0,
         new_preferences_count: int = 0,
     ) -> None:
-        """记录一轮的演化状态"""
+        """Implementation details."""
         entry = {
             "round_id": round_id,
             "timestamp": datetime.now().isoformat(),
@@ -597,12 +543,12 @@ class EvolutionTracker:
         self._save()
 
     def set_session_id(self, session_id: str) -> None:
-        """设置 session ID"""
+        """Implementation details."""
         self._data["session_id"] = session_id
         self._save()
 
     def _save(self) -> None:
-        """保存到文件"""
+        """Implementation details."""
         self.memory_dir.mkdir(parents=True, exist_ok=True)
         with open(self.evolution_file, "w", encoding="utf-8") as f:
             json.dump(self._data, f, ensure_ascii=False, indent=2)

@@ -1,12 +1,4 @@
-"""ProfileInjectionRouter — 用户画像维度级智能注入路由
-
-根据用户第一轮 prompt 判断每个维度与历史画像的关系：
-- inject:   不冲突、不相关 → 原样注入 LTM 值到 WM
-- override: 冲突 → 提炼用户 prompt 中的新偏好，覆盖该维度写入 WM
-- skip:     该维度 LTM 无数据且用户 prompt 也没提及 → 不写入
-
-结果统一写入 WorkingMemory，供 Research/Design/Modify 全程使用。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -21,7 +13,7 @@ from ..extract.llm_compat import extract_message_text, resolve_llm_retry_times
 
 logger = logging.getLogger(__name__)
 
-# LTM 注入来源标记，Consolidator 归档时据此过滤，避免循环写回
+
 LTM_INJECT_SOURCE = "ltm_profile_inject"
 PROFILE_OVERRIDE_SOURCE = "profile_override"
 PROFILE_ROUTE_MAX_TOKENS = 512
@@ -71,19 +63,15 @@ PROFILE_ROUTING_DEBUG_FILENAME = "profile_routing_llm_response_debug.json"
 
 @dataclass
 class DimensionDecision:
-    """单个维度的注入决策"""
+    """Implementation details."""
     dimension: str           # "theme" / "visual" / "layout" / "content" / "template" / "general"
     action: str              # "inject" | "enrich" | "override" | "skip"
-    reason: str = ""         # 决策原因（供日志/调试）
-    override_content: str = ""  # action="override" 时，从用户 prompt 提炼的新值
+    reason: str = ""
+    override_content: str = ""
 
 
 class ProfileInjectionRouter:
-    """用户画像维度级智能注入路由器。
-
-    在 Research Agent 启动前调用 route() + apply()，
-    将画像按维度写入 WM，供全程使用。
-    """
+    """Implementation details."""
 
     def __init__(self, llm: Callable | None = None):
         self._llm = llm
@@ -131,11 +119,7 @@ class ProfileInjectionRouter:
         profile: UserProfile,
         dim: str,
     ) -> list[tuple[str, str]]:
-        """返回写入 WM 的原子偏好列表。
-
-        对结构化画像优先拆成可执行的子维度条目，减少“整段画像=一条偏好”的稀释问题。
-        general 维度按原子规则逐条写入；其他维度在缺少结构化字段时才退回块级文本。
-        """
+        """Implementation details."""
         if dim == "general":
             return [
                 ("general", item.strip())
@@ -289,7 +273,7 @@ class ProfileInjectionRouter:
 
     @staticmethod
     def _supersede_active_dimension_prefix(wm: Any, dim: str) -> None:
-        """覆盖整维偏好时，废弃该顶层维度下所有当前生效条目。"""
+        """Implementation details."""
         for existing in getattr(wm, "_temp_preferences", []):
             if existing.superseded:
                 continue
@@ -299,7 +283,7 @@ class ProfileInjectionRouter:
 
     @staticmethod
     def _append_reason(reason: str, suffix: str) -> str:
-        """在保留原 reason 的基础上补充归一化说明。"""
+        """Implementation details."""
         reason = reason.strip()
         return f"{reason}; {suffix}" if reason else suffix
 
@@ -313,7 +297,7 @@ class ProfileInjectionRouter:
         override_content: str,
         has_history: bool,
     ) -> DimensionDecision:
-        """归一化 LLM 决策，减少空画像场景下的语义漂移。"""
+        """Implementation details."""
         normalized_action = action.strip()
         normalized_reason = reason.strip()
         normalized_content = override_content.strip()
@@ -375,16 +359,7 @@ class ProfileInjectionRouter:
         write_intent: str = "",
         core_persona: str = "",
     ) -> list[DimensionDecision]:
-        """对 profile 的每个维度判断 inject / override / skip。
-
-        Args:
-            user_prompt: 用户第一轮指令
-            profile: 从 LTM 加载的 UserProfile
-            target_intent: 当前目标画像所属 intent
-
-        Returns:
-            每个维度的决策列表
-        """
+        """Implementation details."""
         # Template reuse is handled by template_usage_history + Stage 14 selector.
         # Do not inject template profile text as a generic SYSTEM preference.
         dim_map = {
@@ -393,7 +368,7 @@ class ProfileInjectionRouter:
             if dim_name != "template"
         }
 
-        # 构建每个维度的摘要文本
+
         dim_summaries: dict[str, str] = {}
         dim_has_data: dict[str, bool] = {}
         for dim_name, sub_pref in dim_map.items():
@@ -411,7 +386,7 @@ class ProfileInjectionRouter:
                 for dim_name in dim_summaries
             ]
 
-        # LLM 路由
+
         if self._llm:
             try:
                 decisions = await self._llm_route(
@@ -446,7 +421,7 @@ class ProfileInjectionRouter:
         write_intent: str = "",
         core_persona: str = "",
     ) -> list[DimensionDecision] | None:
-        """LLM 分类路由。"""
+        """Implementation details."""
         dim_order = list(dim_summaries.keys())
         summary_text = self._build_dimension_summary_text(dim_summaries)
         compact_prompt = self._compress_prompt_text(user_prompt, 520)
@@ -490,7 +465,7 @@ class ProfileInjectionRouter:
             last_response = response
             text = extract_message_text(response.choices[0].message).strip()
 
-        # 提取 JSON 数组
+
         start = text.find("[")
         end = text.rfind("]")
         if start < 0 or end <= start:
@@ -535,7 +510,7 @@ class ProfileInjectionRouter:
                 has_history=dim_has_data.get(dim, False),
             ))
 
-        # 确保所有维度都有决策
+
         covered = {d.dimension for d in decisions}
         for dim_name in dim_order:
             if dim_name not in covered:
@@ -562,7 +537,7 @@ class ProfileInjectionRouter:
         *,
         reason: str = "显式 fallback",
     ) -> list[DimensionDecision]:
-        """显式降级：有数据的维度全量 inject，无数据的 skip。"""
+        """Implementation details."""
         decisions = []
         for dim_name, has_data in dim_has_data.items():
             if has_data:
@@ -612,20 +587,7 @@ class ProfileInjectionRouter:
         profile: UserProfile,
         llm: Callable | None = None,
     ) -> dict[str, str]:
-        """将路由决策应用到 WorkingMemory。
-
-        使用 add_preference 进行精准冲突检测（LLM 判断同维度条目
-        是否冲突，只 supersede 冲突的，不冲突的共存）。
-
-        Args:
-            decisions: route() 返回的决策列表
-            wm: WorkingMemory 实例
-            profile: 用于获取维度文本的 UserProfile
-            llm: LLM callable，传递给 add_preference
-
-        Returns:
-            应用结果摘要 {dimension: action}
-        """
+        """Implementation details."""
         result_summary: dict[str, str] = {}
 
         for decision in decisions:
@@ -637,7 +599,7 @@ class ProfileInjectionRouter:
                 continue
 
             if action == "inject":
-                # 将 LTM 维度值原样写入 WM；general 逐条写入，避免块级文本污染后续 merge
+
                 dim_entries = ProfileInjectionRouter._dimension_entries_for_injection(profile, dim)
                 for entry_dim, entry_text in dim_entries:
                     ProfileInjectionRouter._append_profile_injected_preference(
@@ -656,7 +618,7 @@ class ProfileInjectionRouter:
                     result_summary[dim] = "skip (no data)"
 
             elif action == "enrich":
-                # LTM 原值 + 用户补充内容，作为独立的两条写入 WM
+
                 dim_entries = ProfileInjectionRouter._dimension_entries_for_injection(profile, dim)
                 for entry_dim, entry_text in dim_entries:
                     ProfileInjectionRouter._append_profile_injected_preference(
@@ -686,7 +648,7 @@ class ProfileInjectionRouter:
             elif action == "override":
                 content = decision.override_content
                 if not content:
-                    # override 但无提炼内容，降级为 skip（不注入旧值）
+
                     result_summary[dim] = "override (skip, no content)"
                     continue
                 ProfileInjectionRouter._supersede_active_dimension_prefix(wm, dim)
@@ -706,7 +668,7 @@ class ProfileInjectionRouter:
 
     @staticmethod
     def format_decisions_for_log(decisions: list[DimensionDecision]) -> str:
-        """格式化决策列表为日志文本。"""
+        """Implementation details."""
         lines = []
         for d in decisions:
             line = f"  {d.dimension}: {d.action}"

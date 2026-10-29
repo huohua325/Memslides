@@ -638,7 +638,7 @@ async def run_revision_flow(
             content="Agent environment not available. Please run initial generation first.",
         )
         return
-    
+
     try:
         agent_to_use = self._ensure_modifyagent_loaded(
             load_reason="multi-turn modifications"
@@ -663,7 +663,7 @@ async def run_revision_flow(
         model_ref=getattr(agent_to_use, "model_ref", "modify_agent"),
     )  # For finalize() behavior
 
-    # Stage 7: 确保模板 MCP Tool 上下文有效（modify 入口恢复）
+
     if self._guide_builder:
         try:
             from memslides.tools.template_tools import (
@@ -761,17 +761,17 @@ async def run_revision_flow(
         except Exception as e:
             logger.warning(f"Intent preclassification before preference compilation failed (non-fatal): {e}")
 
-    # Stage 8 Phase 2: 在当前 modify turn 开始前提取 session-level preference。
-    # 当前有效链路：
+
+
     # _append_session_preference()
     #   -> MemoryOrchestrator.on_user_preference()
     #   -> WorkingMemory.add_preference()
     #
-    # 说明：
-    # - 历史上的 user_message_analyzer / constraint-vs-preference 二分写法
-    #   已不再作为 modify 阶段的主写入链路，相关残留分支已移除。
-    # - 会重建 SYSTEM memory 的轮次：仅写入 WM，后续统一进入本轮 system prompt
-    # - 不会重建 SYSTEM memory 的轮次：立即追加到 chat_history，保证本轮也可见
+
+
+
+
+
     _skip_session_preference_priming = bool(
         getattr(self, "_skip_next_session_preference_priming", False)
     )
@@ -999,12 +999,12 @@ async def run_revision_flow(
     enhanced_message = user_message
     intent = None
     _experience_text = ""  # Tracked for debug logging
-    
+
     # Debug: log memory system state for experience injection diagnosis
     debug(f"[Experience] mem={mem is not None}, _session={self._session is not None}")
     if mem is not None:
         debug(f"[Experience] mem.db={hasattr(mem, 'db') and mem.db is not None}")
-    
+
     # Memory Pre-Steps: unified inline path (Pipeline removed - was DEPRECATED)
     if mem is not None:
         try:
@@ -1012,20 +1012,20 @@ async def run_revision_flow(
             if isinstance(_preclassified_intent, dict):
                 intent = _preclassified_intent
             elif hasattr(mem, "classifier") and mem.classifier:
-                # Stage 4: 设置轮次 ID 用于 artifact 文件命名
+
                 if hasattr(mem.classifier, 'set_turn_id'):
                     mem.classifier.set_turn_id(turn)
                 intent = await mem.classifier.classify(user_message)
                 if debug_tracer:
                     debug_tracer.log_step(turn, "intent", intent)
                 info(f"Intent classified: {intent}")
-            # Scope-aware preference: 从 intent 推导 context 供下一轮 SYSTEM 注入
-            # target_slide 格式如 "slide_3" 或 "title"/"content" 等
+
+
             _inferred_ctx: dict = {}
             if isinstance(intent, dict):
                 _ts = intent.get("target_slide", "")
                 if _ts and str(_ts).lower() not in ("all", ""):
-                    # 若 target_slide 是页面类型名（非纯数字编号），用作 slide_type
+
                     _is_named_type = not bool(re.match(r'^slide_?\d+$', str(_ts).lower()))
                     if _is_named_type:
                         _inferred_ctx["slide_type"] = _ts
@@ -1243,7 +1243,7 @@ async def run_revision_flow(
             logger.warning(f"Param extraction (before) failed (non-fatal): {e}")
 
     # ── Stage 2/10: Cognitive Memory Observability (five-class) ──
-    # Stage 10: 新版 SYSTEM 注入已在上方完成，此处仅做检索观测日志
+
     _cognitive_retrieval_results = []
     if self.memory_system and hasattr(self.memory_system, 'retriever'):
         try:
@@ -1281,7 +1281,7 @@ async def run_revision_flow(
         except Exception as e:
             logger.warning(f"Cognitive memory injection failed (non-fatal): {e}")
 
-    # Stage 4: 更新 collector 的 memory_injection（保留完整 SYSTEM/fallback/experience 注入）
+
     if self.memory_system and hasattr(self.memory_system, 'collector') and self.memory_system.collector:
         try:
             collector = self.memory_system.collector
@@ -1485,7 +1485,7 @@ async def run_revision_flow(
         logger.warning(f"Modify tool policy application failed (non-fatal): {e}")
 
     # Inject workspace file context so the model knows available resources
-    # Stage 7: 注入模板约束到 RevisionEditor Agent（使用 TemplateGuideBuilder.build_for_modify）
+
     if self._template_profile and self._guide_builder:
         try:
             template_modify_prompt = self._guide_builder.build_for_modify()
@@ -1496,8 +1496,8 @@ async def run_revision_flow(
                     f"</template_constraints>"
                 )
                 info(f"Injected template constraints to RevisionEditor Agent ({len(template_modify_prompt)} chars)")
-                
-                # 保存注入日志到 .history 目录
+
+
                 _modify_prompt_file = self.workspace / ".history" / f"template_prompt_modify_{self._guide_builder._modify_count:02d}.md"
                 _modify_prompt_file.parent.mkdir(parents=True, exist_ok=True)
                 _modify_prompt_file.write_text(template_modify_prompt, encoding="utf-8")
@@ -2641,67 +2641,67 @@ async def run_revision_flow(
                         _modify_plan_idle_rounds += 1
                         continue
 
-            # ── Stage 5: ask_user_clarification 检测与处理 ──
-            # 检测是否为澄清工具调用，如果是则挂起执行流，等待用户回答
+
+
             from memslides.tools.ask_clarification import (
                 is_clarification_tool_call, parse_clarification_arguments,
                 ClarificationRequest, format_tool_response, ClarificationResponse,
             )
-            
+
             _clarification_calls = [tc for tc in agent_message.tool_calls if is_clarification_tool_call(tc)]
             _other_tool_calls = [tc for tc in agent_message.tool_calls if not is_clarification_tool_call(tc)]
-            
+
             if _clarification_calls:
-                # 处理澄清请求（仅取第一个，避免多个澄清同时进行）
+
                 _clar_tc = _clarification_calls[0]
                 _clar_args = parse_clarification_arguments(_clar_tc)
                 _clar_request = ClarificationRequest.from_tool_call(
                     _clar_args, agent_type="modify", context=user_message[:200]
                 )
-                
+
                 info(f"Agent requesting clarification: {_clar_request.question}")
-                
-                # yield-resume 模式：yield 后 generator 暂停，
-                # WebUI 设置 _clarification_answer 后再 resume generator
-                self._clarification_answer = None  # 清空，等待 WebUI 设置
+
+
+
+                self._clarification_answer = None
                 yield {
                     "type": "clarification_required",
                     "data": _clar_request.to_dict(),
                     "tool_call_id": _clar_tc.id,
                 }
-                # Generator 在此恢复时，WebUI 已设置 _clarification_answer
+
                 _user_answer = self._clarification_answer or ""
                 self._clarification_answer = None
-                
+
                 info(f"Clarification answered: {_user_answer[:100]}")
-                
-                # 解析用户回答，如果是选项选择则获取完整选项文本
+
+
                 _selected_option_idx = None
                 _full_answer = _user_answer
                 _answer_stripped = _user_answer.strip().upper()
-                
-                # 检测选项选择：A/B/C/D 或 1/2/3/4 或 "A." 等格式
+
+
                 if _clar_request.options:
                     _option_map = {"A": 0, "B": 1, "C": 2, "D": 3, "1": 0, "2": 1, "3": 2, "4": 3}
-                    # 提取首字符作为选项标识
+
                     _first_char = _answer_stripped[0] if _answer_stripped else ""
                     if _first_char in _option_map:
                         _idx = _option_map[_first_char]
                         if _idx < len(_clar_request.options):
                             _selected_option_idx = _idx
-                            # 使用完整的选项文本作为答案
+
                             _full_answer = _clar_request.options[_idx]
                             info(f"User selected option {_idx + 1}: {_full_answer[:100]}")
-                
-                # 构造工具响应
+
+
                 _clar_response = ClarificationResponse(
                     request_id=_clar_request.id,
-                    answer=_full_answer,  # 使用完整选项文本
+                    answer=_full_answer,
                     selected_option=_selected_option_idx,
                 )
                 _tool_response_text = format_tool_response(_clar_response, _clar_request)
-                
-                # 即时记忆提取：从 QA 对话中提取偏好
+
+
                 if self.memory_system and hasattr(self.memory_system, 'preference_extractor'):
                     try:
                         pref = await self._extract_qa_preference(
@@ -2711,15 +2711,15 @@ async def run_revision_flow(
                             info(f"Extracted preference from QA: {pref.preference[:100]}")
                     except Exception as _e:
                         logger.warning(f"QA preference extraction failed (non-fatal): {_e}")
-                
-                # 将工具响应添加到历史
+
+
                 agent_to_use.chat_history.append(ChatMessage(
                     role=Role.TOOL,
                     content=_tool_response_text,
                     tool_call_id=_clar_tc.id,
                 ))
-                
-                # 注入系统级指令，禁止再次提问确认
+
+
                 agent_to_use.chat_history.append(ChatMessage(
                     role=Role.USER,
                     content=(
@@ -2728,14 +2728,14 @@ async def run_revision_flow(
                         "直接调用工具完成用户选择的方案。"
                     ),
                 ))
-                
-                # 如果还有其他工具调用，继续执行
+
+
                 if _other_tool_calls:
                     agent_message.tool_calls = _other_tool_calls
                 else:
-                    # 没有其他工具调用，继续下一轮循环让 Agent 基于用户回答做决策
+
                     continue
-            
+
             # Record tool call details with results
             pre_tool_count = len(self.agent_env.tool_history)
             outcome = await agent_to_use.execute(agent_message.tool_calls)
@@ -3544,7 +3544,7 @@ async def run_revision_flow(
             mem, user_message, full_response, tool_calls_log,
             intent, debug_tracer, turn,
             before_params, after_params, target_slide,
-            _compact_round,  # Stage 4: 传递 AgentRound 用于统一输入
+            _compact_round,
         )
         # AsyncRuleExtractor scheduling — DEPRECATED (Stage 2.5)
         # Run _post_modify_memory and await completion to ensure memory is persisted.

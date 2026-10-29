@@ -23,7 +23,7 @@ from .state_extractor import ExtractionResult, PPTStateExtractor
 
 
 class StateCoordinator:
-    """状态协调器：确保修改后各组件数据一致"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -38,7 +38,7 @@ class StateCoordinator:
     async def before_modification(
         self, slide_source, slide_type: str = "html"
     ) -> ExtractionResult:
-        """修改前：提取并保存参数"""
+        """Implementation details."""
         result = self.extractor.extract(slide_source, slide_type)
         self.params_store.save_snapshot(result.slide_id, result)
         return result
@@ -51,16 +51,16 @@ class StateCoordinator:
         modification_id: str = "",
         rule_ids_applied: list[str] | None = None,
     ) -> tuple[ExtractionResult, dict]:
-        """修改后：提取参数 + 保存 + 记录diff + 返回变化"""
+        """Implementation details."""
         result = self.extractor.extract(slide_source, slide_type)
         version = self.params_store.save_snapshot(result.slide_id, result)
 
-        # 计算diff
+
         diff = {}
         if version > 1:
             diff = self.params_store.diff(result.slide_id, version - 1, version)
 
-        # 记录到FactualMemory
+
         if self.factual_memory and diff:
             prev_data = self.params_store.get_version(result.slide_id, version - 1)
             before_params = prev_data.get("params", {}) if prev_data else {}
@@ -84,11 +84,7 @@ class StateCoordinator:
         modification_id: str = "",
         rule_ids_applied: list[str] | None = None,
     ) -> tuple[ExtractionResult, ExtractionResult, dict]:
-        """完整修改周期：before → after → diff
-
-        Returns:
-            (before_result, after_result, diff)
-        """
+        """Implementation details."""
         before_result = await self.before_modification(slide_source_before, slide_type)
         after_result, diff = await self.after_modification(
             slide_source_after,

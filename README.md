@@ -171,6 +171,42 @@ are expanded from the current process environment when the YAML is loaded.
 Generated outputs, caches, private YAML files, and credentials must not be
 committed.
 
+## Repository Structure
+
+```text
+src/memslides/              Runtime package and public Python entry points
+src/memslides/experiment/   Paper reproduction experiments and reports
+src/memslides/tools/        MCP tool services and startup wrappers
+src/memslides/memory/       Working-memory, profile, retrieval, and storage code
+tests/                      Automated regression and contract tests
+.memslides/                 Ignored runtime workspaces and generated outputs
+~/.cache/memslides/         User-level caches, logs, and shared memory state
+```
+
+The public command-line entry points are `generate`, `revise`, and
+`template induct`. The experiment runner remains available through
+`python -m memslides.experiment`.
+
+The generated tool snapshot and two unused internal modules were removed from
+the source tree. Use the MCP configuration and public CLI instead of importing
+`memslides/.tools.json`, `memslides.memory.core.protocols`, or
+`memslides.tools.ask_template_selection`.
+
+## Development Checks
+
+Install the development and research extras, then run the same checks used by
+continuous integration:
+
+```bash
+pip install -e ".[dev,research]"
+python -m compileall -q src tests
+python scripts/check_source_hygiene.py
+pytest -q
+ruff check src tests
+npm ci
+npm run check:pptx-export
+```
+
 For Docker runs with a private YAML file:
 
 ```bash

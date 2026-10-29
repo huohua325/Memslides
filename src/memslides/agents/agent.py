@@ -220,19 +220,19 @@ class Agent:
 
     @staticmethod
     def _extract_reasoning_from_openai_message(message: Any) -> str | None:
-        """提取可观测的 reasoning 文本。"""
+        """Implementation details."""
         reasoning, _ = Agent._extract_reasoning_payload_from_openai_message(message)
         return reasoning
 
     @classmethod
     def _reasoning_source_from_openai_message(cls, message: Any) -> str:
-        """标记 tool-call reasoning 实际来自哪里，便于观测。"""
+        """Implementation details."""
         _, source = cls._extract_reasoning_payload_from_openai_message(message)
         return source
 
     @staticmethod
     def _model_key_meta(obj: Any) -> tuple[list[str], list[str]]:
-        """返回 pydantic/openai model 的声明字段与 extra 字段。"""
+        """Implementation details."""
         model_fields = getattr(type(obj), "model_fields", {}) or {}
         declared_keys = list(model_fields.keys())
         extra_keys = list((getattr(obj, "__pydantic_extra__", None) or {}).keys())
@@ -240,7 +240,7 @@ class Agent:
 
     @classmethod
     def _build_llm_response_meta(cls, response: Any) -> dict[str, Any]:
-        """构建轻量观测元数据，便于排查 reasoning 是否被返回。"""
+        """Implementation details."""
         response_keys, response_extra_keys = cls._model_key_meta(response)
         response_dump = response.model_dump() if hasattr(response, "model_dump") else None
         response_dump_keys = list(response_dump.keys()) if isinstance(response_dump, dict) else []
@@ -1039,7 +1039,7 @@ class Agent:
                     )
                     info(f"Tool '{_tc_name}' raised {type(_result).__name__}: {_result}")
                 else:
-                    # ── Truncation guard: 防止超大输出导致 token 溢出 ──
+
                     if isinstance(_result, ChatMessage) and _result.content:
                         content_len = len(_result.content)
                         if content_len > MAX_TOOL_RESULT_CHARS:
@@ -1164,10 +1164,10 @@ class Agent:
                 except Exception:
                     pass
 
-            # Stage 13: remember_lesson → WM 写入
+
             if t.function.name == "remember_lesson" and not o.is_error and self._memory_orchestrator:
                 try:
-                    # 解析 arguments 获取 content, tool_name, keywords, category
+
                     import json as _json
                     _args = t.function.arguments
                     if isinstance(_args, str):
@@ -1314,7 +1314,7 @@ class Agent:
             self.log_message(obs)
 
         if self.context_length > self.context_window:
-            # compact 前先 expire 截图，避免 compact LLM 调用因截图过大而失败
+
             self._expire_screenshots(current_observations=observations)
             if self.context_warning == -1:
                 await self.compact_history()
@@ -1351,17 +1351,17 @@ class Agent:
                         f"{self.context_length}/{self.context_window}"
                     )
 
-        # 滑动窗口截断 - 保留最近 N 轮完整内容，截断更早的 HTML/截图
+
         self._sliding_window_truncate(keep_recent=3)
 
-        # 截图过期：agent 看过一次后立即替换为文本 caption，释放 context
+
         self._expire_screenshots(current_observations=observations)
 
         return observations
 
     @staticmethod
     def _ensure_list_content(msg: ChatMessage) -> None:
-        """确保 msg.content 是 list 格式，以便安全 append/insert。"""
+        """Implementation details."""
         if isinstance(msg.content, str):
             msg.content = [{"type": "text", "text": msg.content}]
 
@@ -1480,7 +1480,7 @@ class Agent:
         self.research_iter += 1
         head, tail = self._split_history(keep_head, keep_tail)
 
-        # Stage 8: 截断大内容以减少 context 占用
+
         head = self._truncate_content_for_compact(head)
         tail = self._truncate_content_for_compact(tail)
         summary_ask = ChatMessage(
@@ -1510,10 +1510,10 @@ class Agent:
             + summary_message.text
         )
 
-        # ── 方案 B: 直接注入摘要到 context，不依赖 agent 自己读写文件 ──
-        # 1. 仍然执行 LLM 的工具调用（保存文件到磁盘用于调试/审计）
-        # 2. 但把 LLM 生成的摘要文本直接嵌入 context
-        # 3. 追加明确指令：禁止再写 summary，立即继续主任务
+
+
+
+
         _compact_tcs = summary_message.tool_calls or []
         tasks = [self.agent_env.tool_execute(tc) for tc in _compact_tcs]
         _compact_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -1531,7 +1531,7 @@ class Agent:
             summary_save_failed=summary_save_failed,
         )
         new_tail = [resume_message]
-        # Stage 8 Phase 2: 保留被压缩掉的中间区域中的 session_preference 消息
+
         middle_start = len(head)
         middle_end = len(self.chat_history) - keep_tail
         preserved_prefs = [
@@ -1563,20 +1563,16 @@ class Agent:
         return head, tail
 
     def _truncate_content_for_compact(self, messages: list[ChatMessage]) -> list[ChatMessage]:
-        """Stage 8: 截断大内容以减少 context 占用
-
-        1. HTML 内容 > 2000 字符 → 截断并添加标记
-        2. base64 图片 → 用 caption 替代
-        """
+        """Implementation details."""
         import re
         import copy
 
         result = []
         for msg in messages:
-            # 深拷贝以避免修改原始消息
+
             new_msg = copy.deepcopy(msg)
 
-            # 处理 content (可能是 str 或 list)
+
             content = new_msg.content
             if isinstance(content, str):
                 content = self._truncate_single_content(content)
@@ -1587,11 +1583,11 @@ class Agent:
                     if isinstance(item, str):
                         new_content.append(self._truncate_single_content(item))
                     elif isinstance(item, dict):
-                        # 处理图片类型
+
                         if item.get("type") == "image_url":
                             url = item.get("image_url", {}).get("url", "")
                             if url.startswith("data:image"):
-                                # 替换为 caption
+
                                 new_content.append({
                                     "type": "text",
                                     "text": "[IMAGE: slide screenshot - base64 removed for context saving]"
@@ -1608,19 +1604,19 @@ class Agent:
         return result
 
     def _truncate_single_content(self, text: str, max_len: int = 2000) -> str:
-        """Stage 8: 截断单个内容字符串"""
+        """Implementation details."""
         import re
 
-        # 1. 移除 base64 图片 (data:image/...;base64,...)
+
         text = re.sub(
             r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+',
             '[IMAGE: base64 removed]',
             text
         )
 
-        # 2. 截断过长 HTML
+
         if len(text) > max_len:
-            # 检测是否是 HTML
+
             if '<html' in text.lower() or '<!doctype' in text.lower() or '<div' in text.lower():
                 text = text[:max_len] + "\n\n[... HTML truncated for context saving ...]"
             else:
@@ -1629,28 +1625,19 @@ class Agent:
         return text
 
     def _sliding_window_truncate(self, keep_recent: int = 3):
-        """Stage 8: 滑动窗口截断 - 保留最近 N 轮完整内容，截断更早的 HTML/截图
+        """Implementation details."""
 
-        为什么 keep_recent=3？
-        - 覆盖"生成→检查→修复→再检查"的典型迭代周期
-        - LLM 需要看到近期工作来做增量修改
-        - 更早的轮次只需知道"已完成"，不需要完整内容
-
-        效果：per-turn 稳态消耗从 ~2000-4000 降至 ~600-1000 tokens，
-              compact 触发从第 6-8 轮延后到第 20-30 轮
-        """
-        # 每轮大约 2 条消息（assistant + tool result），保守估计
         min_history_len = keep_recent * 2 + 2  # +2 for system + initial user
         if len(self.chat_history) <= min_history_len:
-            return  # 历史太短，不截断
+            return
 
-        # 计算截断边界：保留最近 keep_recent*2 条消息
+
         cutoff_idx = len(self.chat_history) - keep_recent * 2
 
-        # 标记已截断的消息，避免重复处理
+
         for i, msg in enumerate(self.chat_history[:cutoff_idx]):
             if getattr(msg, '_sliding_truncated', False):
-                continue  # 已处理过
+                continue
 
             if msg.role == Role.TOOL:
                 msg.content = self._truncate_old_tool_content(msg.content)
@@ -1662,16 +1649,10 @@ class Agent:
                 msg._sliding_truncated = True
 
     def _expire_screenshots(self, current_observations: list[ChatMessage]):
-        """截图过期：保留最近 1 张截图，替换更早的截图为文本 caption。
-
-        保留策略：当前轮次的 observations + history 中最近的 1 张截图保留，
-        其余全部替换为文本占位符。这样 LLM 始终能看到最新截图用于对比参考。
-
-        效果：稳态最多 2 张截图（当前轮 + 上一轮），~8K tokens。
-        """
+        """Implementation details."""
         current_ids = {id(obs) for obs in current_observations}
 
-        # 从后往前扫描，找到最近一张已有截图（非当前轮）并保留
+
         keep_one_id = None
         for msg in reversed(self.chat_history):
             if id(msg) in current_ids:
@@ -1687,7 +1668,7 @@ class Agent:
 
         for msg in self.chat_history:
             if id(msg) in current_ids or id(msg) == keep_one_id:
-                continue  # 当前轮次 + 最近 1 张保留
+                continue
             if msg.role != Role.TOOL:
                 continue
             if not isinstance(msg.content, list):
@@ -1708,24 +1689,24 @@ class Agent:
                 msg.content = new_content
 
     def _truncate_old_tool_content(self, content: str | list) -> str | list:
-        """Stage 8: 截断旧 tool result 中的 HTML 和截图（比 compact 更激进）"""
+        """Implementation details."""
         import re
 
-        OLD_CONTENT_MAX_LEN = 500  # 比 compact 的 2000 更激进
+        OLD_CONTENT_MAX_LEN = 500
 
         if isinstance(content, str):
-            # 移除 base64 图片
+
             content = re.sub(
                 r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+',
-                '[📸 旧截图已压缩]',
+                '[Slide screenshot compressed; refer to the text summary]',
                 content
             )
-            # 截断长文本
+
             if len(content) > OLD_CONTENT_MAX_LEN:
                 if '<html' in content.lower() or '<!doctype' in content.lower() or '<div' in content.lower():
-                    content = content[:OLD_CONTENT_MAX_LEN] + "\n[... 旧 HTML 已压缩 ...]"
+                    content = content[:OLD_CONTENT_MAX_LEN] + "\n[... older HTML compressed ...]"
                 else:
-                    content = content[:OLD_CONTENT_MAX_LEN] + "\n[... 旧内容已压缩 ...]"
+                    content = content[:OLD_CONTENT_MAX_LEN] + "\n[... older content compressed ...]"
             return content
 
         elif isinstance(content, list):
@@ -1733,18 +1714,18 @@ class Agent:
             for item in content:
                 if isinstance(item, dict):
                     if item.get("type") == "image_url":
-                        # 截图 → 占位符
-                        result.append({"type": "text", "text": "[📸 旧截图已压缩]"})
+
+                        result.append({"type": "text", "text": "[Slide screenshot compressed; refer to the text summary]"})
                     elif item.get("type") == "text":
                         text = item.get("text", "")
                         if len(text) > OLD_CONTENT_MAX_LEN:
-                            text = text[:OLD_CONTENT_MAX_LEN] + "\n[... 旧内容已压缩 ...]"
+                            text = text[:OLD_CONTENT_MAX_LEN] + "\n[... older content compressed ...]"
                         result.append({"type": "text", "text": text})
                     else:
                         result.append(item)
                 elif isinstance(item, str):
                     if len(item) > OLD_CONTENT_MAX_LEN:
-                        item = item[:OLD_CONTENT_MAX_LEN] + "\n[... 旧内容已压缩 ...]"
+                        item = item[:OLD_CONTENT_MAX_LEN] + "\n[... older content compressed ...]"
                     result.append(item)
                 else:
                     result.append(item)
@@ -1753,24 +1734,21 @@ class Agent:
         return content
 
     def _truncate_html_args(self, args_json: str) -> str:
-        """Stage 8: 截断 write_html_file 参数中的 HTML 内容"""
+        """Implementation details."""
         HTML_ARG_MAX_LEN = 200
 
         try:
             args = json.loads(args_json)
             if "content" in args and isinstance(args["content"], str):
                 if len(args["content"]) > HTML_ARG_MAX_LEN:
-                    # 保留开头，截断中间
-                    args["content"] = args["content"][:HTML_ARG_MAX_LEN] + "... [旧 HTML 已压缩]"
+
+                    args["content"] = args["content"][:HTML_ARG_MAX_LEN] + "... [older HTML compressed]"
             return json.dumps(args, ensure_ascii=False)
         except (json.JSONDecodeError, TypeError):
             return args_json
 
     def reset_for_new_round(self, round_summary_prompt: str = "") -> None:
-        """重置 chat_history，保留 SYSTEM prompt，注入历史 Round 摘要。
-
-        每个 Round 开始前由 MemoryRuntime/MemoryOrchestrator 调用。
-        """
+        """Implementation details."""
         # Rebuild the base SYSTEM prompt from self.system when available.
         # chat_history[0] may already contain turn-specific memory injection.
         base_system = getattr(self, "system", "") or self.chat_history[0].text

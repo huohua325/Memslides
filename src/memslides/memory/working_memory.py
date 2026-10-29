@@ -1,12 +1,4 @@
-"""Working Memory — Job 级临时存储 (Stage 12 + Stage 14)
-
-WM + 双 LTM 架构的核心组件。
-存储 TempPreference、RoundExperience、DesignEpisode、ToolChainBuffer、JobHistory。
-
-Stage 14 重构:
-- RoundExperience 替代 TempExperienceTrace，统一两种经验来源
-- 通过 source 字段区分 agent_lesson / auto_extract / preload
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -62,7 +54,7 @@ _GENERAL_UPDATE_PROMPT = """你是PPT设计助手的 general 偏好整合器。�
 
 
 class WorkingMemory:
-    """纯内存 WorkingMemory — Job 级临时存储。"""
+    """Implementation details."""
 
     def __init__(self, job_id: str, chain_extract_threshold: int = 3,
                  embedding_func=None):
@@ -78,25 +70,12 @@ class WorkingMemory:
     async def add_preference(
         self, pref: TempPreference, llm: Callable | None = None,
     ) -> None:
-        """添加临时偏好，LLM 判断同维度冲突后精准 supersede。
-
-        对同维度已有的 active 条目，用 LLM 逐条判断是否与新偏好冲突：
-        - conflict → supersede（标记为废弃）
-        - coexist  → 保留（两条共存）
-
-        无 LLM 或无维度时，对普通维度降级为全量 supersede；
-        general 维度走保守追加/去重，避免误删其他全局规则。
-
-        Args:
-            pref: 要添加的临时偏好
-            llm: LLM callable，用于冲突检测/merge。如果为 None，普通维度降级到全量
-                 supersede，general 维度则保守保留旧规则并只做去重追加。
-        """
+        """Implementation details."""
         if pref.dimension == "general":
             await self._add_general_preference(pref, llm=llm)
             return
 
-        # 降级场景：无维度或无 LLM，同维度全量 supersede
+
         if not pref.dimension or not llm:
             if pref.dimension:
                 for existing in self._temp_preferences:
@@ -105,23 +84,23 @@ class WorkingMemory:
             self._temp_preferences.append(pref)
             return
 
-        # 找到同维度 active 条目
+
         same_dim_active = [
             (i, p) for i, p in enumerate(self._temp_preferences)
             if p.dimension == pref.dimension and not p.superseded
         ]
 
         if not same_dim_active:
-            # 无同维度条目，直接追加
+
             self._temp_preferences.append(pref)
             return
 
-        # LLM 冲突检测
+
         conflict_indices = await self._llm_conflict_check(
             pref.content, same_dim_active, llm,
         )
 
-        # 只 supersede 冲突的条目
+
         for global_idx in conflict_indices:
             self._temp_preferences[global_idx].superseded = True
 
@@ -137,14 +116,7 @@ class WorkingMemory:
         pref: TempPreference,
         llm: Callable | None = None,
     ) -> None:
-        """general 偏好单独处理。
-
-        general 更接近“全局规则集合”，不适合普通维度的一对一 conflict/coexist。
-        策略：
-        1. 先把历史遗留的多行 general 块拆成原子条目
-        2. 有 LLM 时，让模型判断 conflict / merge / duplicate / coexist
-        3. 无 LLM 时走保守降级：不覆盖旧规则，只做去重后追加
-        """
+        """Implementation details."""
         self._normalize_active_general_preferences()
 
         same_dim_active = [
@@ -227,12 +199,7 @@ class WorkingMemory:
 
     @classmethod
     def extract_general_preference_items(cls, content: str) -> list[str]:
-        """将 general 文本拆成原子规则。
-
-        兼容以下两类输入：
-        - 单条 general 偏好文本
-        - 历史遗留的 "## General Preferences\\n- ...\\n- ..." 块
-        """
+        """Implementation details."""
         raw = str(content or "").strip()
         if not raw:
             return []
@@ -258,7 +225,7 @@ class WorkingMemory:
         return [normalized] if normalized else []
 
     def _normalize_active_general_preferences(self) -> None:
-        """将旧格式的 general 大块文本拆成原子规则，保留原来源元数据。"""
+        """Implementation details."""
         active_items = {
             p.content.strip()
             for p in self._temp_preferences
@@ -307,7 +274,7 @@ class WorkingMemory:
         new_content: str,
         same_dim_active: list[tuple[int, TempPreference]],
     ) -> bool:
-        """判断新 general 偏好是否与当前 active 集合等价。"""
+        """Implementation details."""
         active_items: list[str] = []
         for _, pref in same_dim_active:
             active_items.extend(self.extract_general_preference_items(pref.content))
@@ -321,7 +288,7 @@ class WorkingMemory:
         same_dim_active: list[tuple[int, TempPreference]],
         llm: Callable,
     ) -> tuple[list[int], bool, str] | None:
-        """LLM 判断 general 偏好的冲突、合并与重复关系。"""
+        """Implementation details."""
         existing_items = "\n".join(
             f"[{seq}] {pref.content}" for seq, (_, pref) in enumerate(same_dim_active)
         )
@@ -377,21 +344,17 @@ class WorkingMemory:
             return None
 
     def add_preference_sync(self, pref: TempPreference) -> None:
-        """同步包装器，仅用于测试和 Job 恢复。
-
-        生产代码应使用 async add_preference(pref, llm=...)。
-        此方法使用 llm=None，降级到全量 supersede。
-        """
+        """Implementation details."""
         import asyncio
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # 如果已经在 async 上下文中，不能使用 run_until_complete
+
                 raise RuntimeError("Cannot use sync wrapper in async context. Use await add_preference() instead.")
             loop.run_until_complete(self.add_preference(pref, llm=None))
         except RuntimeError as e:
             if "no running event loop" in str(e) or "no current event loop" in str(e):
-                # 创建新的事件循环
+
                 asyncio.run(self.add_preference(pref, llm=None))
             else:
                 raise
@@ -402,11 +365,7 @@ class WorkingMemory:
         same_dim_active: list[tuple[int, TempPreference]],
         llm: Callable,
     ) -> list[int]:
-        """LLM 判断新偏好与同维度已有偏好的冲突关系。
-
-        Returns:
-            冲突条目的全局索引列表（应被 supersede）。
-        """
+        """Implementation details."""
         existing_items = "\n".join(
             f"[{seq}] {p.content}" for seq, (_, p) in enumerate(same_dim_active)
         )
@@ -455,15 +414,15 @@ class WorkingMemory:
             logger.warning("_llm_conflict_check failed: %s, fallback to full supersede", e)
             return [idx for idx, _ in same_dim_active]
 
-    # ── Stage 14: RoundExperience 管理 ──
+
 
     def add_experience(self, exp: RoundExperience) -> None:
-        """添加经验（remember_lesson / 自动提取 / LTM 预加载）"""
+        """Implementation details."""
         exp.source_job_id = self._job_id
         self._temp_experiences.append(exp)
 
     def get_experiences(self) -> list[RoundExperience]:
-        """获取所有临时经验"""
+        """Implementation details."""
         return self._temp_experiences.copy()
 
     async def search_experiences_by_keywords(
@@ -471,42 +430,34 @@ class WorkingMemory:
         query: str,
         top_k: int = 5,
     ) -> list[RoundExperience]:
-        """语义检索临时经验（向量优先，关键词降级）
-
-        Args:
-            query: 检索查询（通常是 user_message 或工具名）
-            top_k: 返回数量上限
-
-        Returns:
-            按相关性排序的 RoundExperience 列表
-        """
+        """Implementation details."""
         if not self._temp_experiences:
             return []
 
-        # 优先使用向量语义检索
+
         if self._embedder is not None:
             try:
                 return await self._semantic_search(query, top_k)
             except Exception:
-                pass  # 降级到关键词匹配
+                pass
 
-        # 降级：关键词重叠度匹配
+
         return self._keyword_search(query, top_k)
 
     async def _semantic_search(
         self, query: str, top_k: int,
     ) -> list[RoundExperience]:
-        """向量语义检索：embed query + 经验文本，cosine 排序取 top_k"""
+        """Implementation details."""
         from memslides.memory.core.embedding import batch_cosine_similarity
 
-        # 构建经验文本（keywords + content 拼接）
+
         exp_texts = []
         for exp in self._temp_experiences:
             kw_part = " ".join(exp.keywords) if exp.keywords else ""
             text = f"{kw_part} {exp.content}".strip()
             exp_texts.append(text)
 
-        # 批量 embed（利用缓存避免重复计算）
+
         uncached_texts = []
         uncached_ids = []
         for i, exp in enumerate(self._temp_experiences):
@@ -522,7 +473,7 @@ class WorkingMemory:
         # embed query
         query_vec = (await self._embedder([query]))[0]
 
-        # 构建矩阵并计算相似度
+
         import numpy as np
         matrix = np.array(
             [self._exp_embeddings_cache[exp.id] for exp in self._temp_experiences],
@@ -530,12 +481,12 @@ class WorkingMemory:
         )
         scores = batch_cosine_similarity(query_vec, matrix)
 
-        # 按分数排序取 top_k（不设阈值，全量返回 top_k）
+
         indices = np.argsort(scores)[::-1][:top_k]
         return [self._temp_experiences[i] for i in indices]
 
     def _keyword_search(self, query: str, top_k: int) -> list[RoundExperience]:
-        """关键词重叠度匹配（降级策略）"""
+        """Implementation details."""
         query_tokens = set(self._tokenize(query.lower()))
         scored = []
         for exp in self._temp_experiences:
@@ -554,7 +505,7 @@ class WorkingMemory:
         return [exp for exp, _ in scored[:top_k]]
 
     def get_experiences_prompt(self) -> str:
-        """生成 WM 经验的注入 prompt 文本"""
+        """Implementation details."""
         if not self._temp_experiences:
             return ""
         lines = ['<working_memory_experiences priority="high" note="当前会话经验，优先级高于历史经验">']
@@ -563,14 +514,14 @@ class WorkingMemory:
         lines.append("</working_memory_experiences>")
         return "\n".join(lines)
 
-    # ── Episode 管理 ──
+
 
     def add_episode(self, episode: DesignEpisode) -> None:
-        """添加临时 Episode"""
+        """Implementation details."""
         self._temp_episodes.append(episode)
 
     def get_episodes(self) -> list[DesignEpisode]:
-        """获取所有临时 Episode"""
+        """Implementation details."""
         return self._temp_episodes.copy()
 
     async def search_preferences_by_dimension(
@@ -579,20 +530,7 @@ class WorkingMemory:
         context: dict,
         top_k: int = 10,
     ) -> list[TempPreference]:
-        """基于 DimensionMatcher 结果筛选 WM 偏好（推荐使用）。
-
-        与 LTM UserProfile 使用相同的 DimensionMatcher 维度筛选逻辑，
-        确保 WM 和 LTM 的偏好检索口径一致。
-
-        Args:
-            matched_dims: DimensionMatcher 匹配到的维度集合。
-                          None 表示全量返回（无法判断维度时的兜底）。
-            context: scope 过滤上下文 {"slide_type": ..., "element_type": ...}
-            top_k: 返回数量上限
-
-        Returns:
-            按维度匹配筛选后的 TempPreference 列表
-        """
+        """Implementation details."""
         candidates = [p for p in self._temp_preferences
                       if not p.superseded and p.matches_context(context)]
         if not candidates:
@@ -611,8 +549,8 @@ class WorkingMemory:
                 return general
             return general + specific[: max(top_k - len(general), 0)]
 
-        # 按维度前缀匹配：matched_dims 是顶级维度名（如 "theme"），
-        # TempPreference.dimension 是带子字段的（如 "theme.primary_colors"）
+
+
         matched = []
         general = []
         for pref in candidates:
@@ -620,7 +558,7 @@ class WorkingMemory:
             if dim_prefix in matched_dims:
                 matched.append(pref)
             elif dim_prefix in {"", "general"}:
-                # general 偏好始终包含，不受 matched_dims / top_k specific 限制
+
                 general.append(pref)
 
         if len(general) >= top_k:
@@ -629,7 +567,7 @@ class WorkingMemory:
         return general + matched[:remaining]
 
     def search_preferences(self, query: str, context: dict, top_k: int = 10) -> list[TempPreference]:
-        """搜索临时偏好（向后兼容）：只返回当前生效的（superseded=False），scope 过滤 → token 重叠度排序"""
+        """Implementation details."""
         candidates = [p for p in self._temp_preferences
                       if not p.superseded and p.matches_context(context)]
         if not candidates:
@@ -650,13 +588,13 @@ class WorkingMemory:
         return [p for p, _ in scored[:top_k]]
 
     def _tokenize(self, text: str) -> list[str]:
-        """简单双语分词"""
+        """Implementation details."""
         import re
         tokens = re.findall(r'[\w]+', text)
         return tokens
 
     def search_tool_experiences(self, query: str, tool_name: str = "", top_k: int = 20):
-        """委托给 ToolChainBuffer（存储 ChainSegment 和 ChainExperience）"""
+        """Implementation details."""
         if tool_name:
             return self._chain_buffer.get_experiences_for_tool(tool_name)[:top_k]
         return self._chain_buffer.search_experiences(query, top_k=top_k)
@@ -670,7 +608,7 @@ class WorkingMemory:
         return self._job_history
 
     def release(self) -> None:
-        """释放所有数据"""
+        """Implementation details."""
         self._temp_preferences.clear()
         self._temp_experiences.clear()  # Stage 14
         self._temp_episodes.clear()

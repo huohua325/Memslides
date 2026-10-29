@@ -34,8 +34,8 @@ class MemorySystem:
 
     # LLM & Embedding
     llm: Any = None
-    llm_by_task: dict = field(default_factory=dict)  # 分级LLM: {task_type: callable}
-    llm_objects_by_task: dict = field(default_factory=dict)  # Stage 5: 原始LLM对象 {task_type: AsyncLLM}
+    llm_by_task: dict = field(default_factory=dict)
+    llm_objects_by_task: dict = field(default_factory=dict)
     embedding_func: Any = None
 
     # Extractor
@@ -63,14 +63,14 @@ class MemorySystem:
     event_bus: Any = None
 
     # Stage 2 Phase 2/3: Advanced components
-    experience_retriever: Any = None  # ChromaDB + BM25 混合检索
+    experience_retriever: Any = None
 
-    # Stage 4: AtomicPreference (替代 UserDesignProfile)
+
     preference_store: Any = None
     preference_extractor: Any = None
-    memory_consolidator: Any = None  # Stage 4: 离线记忆整合器
+    memory_consolidator: Any = None
 
-    # Stage 12: UserProfile (LTM 偏好检索的唯一源)
+
     profile_store: Any = None
     core_profile_store: Any = None
     user_state_resolver: Any = None
@@ -173,7 +173,7 @@ class MemorySystem:
             )
         logger.info(f"Memory system default LLM: {default_llm_ref}")
 
-        # ── 分级 LLM 配置 ──
+
         # memory.llm: { task_type: model_ref, ... }
         llm_config = getattr(mem_cfg, 'llm', None) or {}
 
@@ -203,10 +203,10 @@ class MemorySystem:
                 return response.choices[0].message.content
             return _call
 
-        # 默认 LLM callable (向后兼容)
+
         llm = _make_llm_callable(default_llm_obj)
 
-        # 分级 LLM callable dict
+
         llm_by_task = {
             'intent_classify': _make_llm_callable(_resolve_llm_obj('intent_classify')),
             'user_message_analyze': _make_llm_callable(_resolve_llm_obj('user_message_analyze')),
@@ -217,11 +217,11 @@ class MemorySystem:
         }
         logger.info("Memory LLM routing: %s", {k: llm_config.get(k, default_llm_ref) for k in llm_by_task})
 
-        # Stage 5: 原始 LLM 对象字典（某些组件如 SlideInducter 需要 AsyncLLM 对象而不是 callable）
+
         llm_objects_by_task = {
             'template_analyze': _resolve_llm_obj('template_analyze'),
-            'vision': getattr(global_config, 'design_agent', None),  # 用于 layout 聚类，使用 design_agent
-            # main.py 使用: intent classification, profile injection, style classification
+            'vision': getattr(global_config, 'design_agent', None),
+
             'intent_classify': _resolve_llm_obj('intent_classify'),
             'profile_injection': _resolve_llm_obj('profile_injection'),
             'style_classify': _resolve_llm_obj('style_classify'),
@@ -312,7 +312,7 @@ class MemorySystem:
             from .core.event_bus import MemoryEventBus
             event_bus_obj = MemoryEventBus()
 
-            # Stage 4: 初始化中间产物写入器 (v1 fallback)
+
             from .collect.artifact_writer import ExtractionArtifactWriter, RoundArtifactWriter
             memory_dir = base_dir / ".memory"
             round_artifact_writer = RoundArtifactWriter(memory_dir)
@@ -320,14 +320,14 @@ class MemorySystem:
             logger.info("RoundArtifactWriter initialized at %s", memory_dir)
             logger.info("ExtractionArtifactWriter initialized at %s", memory_dir)
 
-            # Collector — persist_dir 使 pending rounds 在进程重启后可恢复
-            # Stage 12: 传入 artifact_dumper (v2)，优先使用
+
+
             from .collect.collector import MemoryCollector
             collector_persist_dir = base_dir / ".memory"
             collector = MemoryCollector(
                 persist_dir=str(collector_persist_dir),
                 artifact_writer=round_artifact_writer,  # Stage 4 (v1 fallback)
-                artifact_dumper=artifact_dumper,  # Stage 12 (v2 优先)
+                artifact_dumper=artifact_dumper,
             )
             # Wire EventBus callbacks
             from .core.event_bus import MemoryEvent
@@ -386,10 +386,10 @@ class MemorySystem:
                 debug_tracer=debug_tracer,
             )
 
-            # Stage 4 新增: 注入满意度触发提取回调
+
             if collector:
                 async def _on_extraction_needed(batch):
-                    """满意度信号触发的立即提取"""
+                    """Implementation details."""
                     if episode_extractor_obj and batch:
                         await episode_extractor_obj.extract_and_store(
                             batch, user_id="default", session_id=base_dir.stem,
@@ -430,15 +430,15 @@ class MemorySystem:
                     from .store.atomic_preference_store import AtomicPreferenceStore
                     preference_store_obj = AtomicPreferenceStore(db)
                     logger.info("AtomicPreferenceStore initialized (Stage 4)")
-                    # 注: AtomicPreferenceExtractor (Episode→AtomicPreference 路径) 已废弃。
-                    # 偏好现通过 Consolidator 在 Job 结束时直接写 UserProfile。
-                    # AtomicPreferenceStore 保留供 Consolidator 双写暂存记录使用。
+
+
+
                 except Exception as e:
                     logger.warning("AtomicPreferenceStore init failed: %s", e)
             else:
                 logger.info("AtomicPreference disabled by config (preference_extraction=false)")
 
-            # Experience Trace Retriever (ChromaDB + BM25 混合检索)
+
             if db and embedding_func:
                 try:
                     from .retrieve.experience_retriever import ExperienceTraceRetriever
@@ -447,7 +447,7 @@ class MemorySystem:
                         embedding_func=embedding_func,
                         persist_dir=str(db_path.parent),
                     )
-                    # 重建索引以确保已有 traces 被索引
+
                     import asyncio
                     asyncio.create_task(experience_retriever_obj.rebuild_index())
                     logger.info("ExperienceTraceRetriever initialized (ChromaDB + BM25)")
@@ -466,7 +466,7 @@ class MemorySystem:
 
             from .evolution.memory_consolidator import OfflineMemoryConsolidator
 
-            # Stage 4: 离线记忆整合器
+
             memory_consolidator_obj = OfflineMemoryConsolidator(
                 db=db,
                 llm=llm_by_task.get('memory_consolidation', llm),
@@ -482,7 +482,7 @@ class MemorySystem:
         except Exception as e:
             logger.warning("Stage 2 Phase 2/3 init failed (non-fatal): %s", e)
 
-        # Stage 15: ToolKnowledgeLearner 已废弃，tool_error 统一走 orchestrator.on_tool_error() → WM
+
 
         # Stage 12: UserProfileStore
         profile_store_obj = None
@@ -564,8 +564,8 @@ class MemorySystem:
             experience_retriever=experience_retriever_obj,
             preference_store=preference_store_obj,
             memory_consolidator=memory_consolidator_obj,
-            template_store=template_store_obj,  # Stage 5 新增
-            profile_store=profile_store_obj,  # Stage 12 新增
+            template_store=template_store_obj,
+            profile_store=profile_store_obj,
             core_profile_store=core_profile_store_obj,
             user_state_resolver=user_state_resolver_obj,
             config=mem_cfg,

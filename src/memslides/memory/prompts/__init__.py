@@ -1,17 +1,4 @@
-"""Memory System Prompt Registry — 集中管理所有 LLM Prompt
-
-按功能分组:
-- extraction: 意图分类、Episode提取、工具约束学习、用户消息分析、原子偏好提取
-- experience: 经验轨迹提取、工具错误合并
-- retrieval: 多查询生成
-
-Usage:
-    from memslides.memory.prompts import (
-        EPISODE_EXTRACTION_PROMPT,
-        TURN_EXPERIENCE_PROMPT,
-        ...
-    )
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 

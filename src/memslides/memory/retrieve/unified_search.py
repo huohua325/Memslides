@@ -1,10 +1,4 @@
-"""统一搜索引擎 — 组合 ChromaDB + BM25 + RRF
-
-学习 nemori UnifiedSearchEngine 的设计:
-- 写入时双路索引 (ChromaDB + BM25)
-- 检索时并行查询 + RRF 融合
-- 支持 search_method: "hybrid" | "vector" | "bm25"
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -18,13 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class UnifiedSearchEngine:
-    """统一搜索引擎
-
-    学习 nemori UnifiedSearchEngine 的设计:
-    - 写入时双路索引 (ChromaDB + BM25)
-    - 检索时并行查询 + RRF 融合
-    - 支持 search_method: "hybrid" | "vector" | "bm25"
-    """
+    """Implementation details."""
 
     def __init__(
         self,
@@ -43,7 +31,7 @@ class UnifiedSearchEngine:
         document: str,
         metadata: dict,
     ):
-        """双路写入 (学习 nemori: 写入时同步更新两个索引)"""
+        """Implementation details."""
         # ChromaDB (async)
         if self._chroma:
             try:
@@ -65,7 +53,7 @@ class UnifiedSearchEngine:
         top_k: int = 5,
         method: str = "hybrid",
     ) -> List[RetrievalResult]:
-        """统一检索入口"""
+        """Implementation details."""
         if method == "vector":
             if self._chroma:
                 return await self._chroma.search(query, top_k, user_id)
@@ -83,7 +71,7 @@ class UnifiedSearchEngine:
         user_id: str = "default",
         top_k: int = 5,
     ) -> List[RetrievalResult]:
-        """兼容 HybridRetriever.retrieve() 接口 — AgenticRetriever 调用此方法"""
+        """Implementation details."""
         return await self.search(query, user_id, top_k)
 
     async def _hybrid_search(
@@ -92,7 +80,7 @@ class UnifiedSearchEngine:
         user_id: str,
         top_k: int,
     ) -> List[RetrievalResult]:
-        """并行 ChromaDB + BM25 → RRF 融合"""
+        """Implementation details."""
         tasks = []
         if self._chroma:
             tasks.append(self._chroma.search(query, top_k * 2, user_id))
@@ -121,7 +109,7 @@ class UnifiedSearchEngine:
         result_lists: list[list[RetrievalResult]],
         top_k: int,
     ) -> List[RetrievalResult]:
-        """RRF 融合 — 委托给共享 rrf_merge()"""
+        """Implementation details."""
         return rrf_merge(result_lists, top_k, self._rrf_k)
 
     async def close(self) -> None:

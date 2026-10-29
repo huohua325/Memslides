@@ -1,11 +1,4 @@
-"""
-EpisodeExtractor — 情景记忆提取器 (Stage 2)
-
-三阶段 Pipeline:
-  预过滤 (确定性) → LLM 提取 → 后过滤 (确定性)
-
-从 CompactRound batch 中提取 DesignEpisode。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -32,12 +25,12 @@ except ImportError:
 
 
 # ═══════════════════════════════════════════════
-# Prompt 模板 — 迁移到 memory/prompts/extraction.py
+
 from ..prompts import EPISODE_EXTRACTION_PROMPT
 
 
 # ═══════════════════════════════════════════════
-# 后过滤: 可观测状态正则模式
+
 # ═══════════════════════════════════════════════
 
 OBSERVABLE_PATTERNS = [
@@ -55,13 +48,7 @@ OBSERVABLE_PATTERNS = [
 # ═══════════════════════════════════════════════
 
 class EpisodeExtractor:
-    """情景记忆提取器 — 从 CompactRound batch 中提取 DesignEpisode
-
-    三阶段 Pipeline:
-    1. _pre_filter: 移除无信息量的轮次 (0 LLM)
-    2. _do_extract: LLM 提取因果链 Episode
-    3. _post_filter: 移除含可观测状态的 Episode (0 LLM)
-    """
+    """Implementation details."""
 
     def __init__(
         self,
@@ -70,8 +57,8 @@ class EpisodeExtractor:
         event_bus: Any = None,
         debug_tracer: Any = None,
         embedding_func: Any = None,
-        extractions_dir: Path | str | None = None,  # Stage 4 新增
-        preference_extractor: Any = None,  # 已废弃，保留签名兼容性
+        extractions_dir: Path | str | None = None,
+        preference_extractor: Any = None,
         **kwargs: Any,
     ) -> None:
         self._llm = llm
@@ -79,7 +66,7 @@ class EpisodeExtractor:
         self._event_bus = event_bus
         self._debug_tracer = debug_tracer
         self._embed = embedding_func
-        # preference_extractor 已废弃，不再使用
+
         self._stats: dict[str, int] = {
             "total_candidates": 0,
             "observable_rejected": 0,
@@ -88,7 +75,7 @@ class EpisodeExtractor:
             "kept": 0,
         }
         self._batch_counter: int = 0
-        # Stage 4 新增: 中间产物写入器
+
         self._extraction_writer: ExtractionArtifactWriter | None = None
         if extractions_dir:
             try:
@@ -96,34 +83,31 @@ class EpisodeExtractor:
             except Exception as e:
                 logger.warning("Failed to init ExtractionArtifactWriter: %s", e)
 
-    # ── 预过滤 (确定性) ──
+
 
     def _pre_filter(self, batch: list) -> list | None:
-        """确定性预过滤 — 移除无信息量的轮次"""
+        """Implementation details."""
         filtered = [r for r in batch if self._should_extract_round(r)]
         return filtered if filtered else None
 
     @staticmethod
     def _should_extract_round(compact: Any) -> bool:
-        """单轮预过滤条件"""
-        # ≥2 次错误 → 保留
+        """Implementation details."""
+
         if sum(1 for s in compact.segments if s.is_error) >= 2:
             return True
-        # 涉及 ≥3 个不同文件 → 保留
+
         if len(set(s.target_file for s in compact.segments if s.target_file)) >= 3:
             return True
-        # 仅 ≤2 个 segments → 跳过
+
         if len(compact.segments) <= 2:
             return False
         return True
 
-    # ── LLM 提取 ──
+
 
     async def _do_extract(self, filtered_batch: list, **kwargs: Any) -> list[dict]:
-        """LLM 提取 — 使用 EPISODE_EXTRACTION_PROMPT
-
-        Stage 4 改造: 保存完整 LLM 输入/输出。
-        """
+        """Implementation details."""
         batch_text = "\n---\n".join(r.to_extraction_text() for r in filtered_batch)
         prompt = EPISODE_EXTRACTION_PROMPT.format(batch_text=batch_text)
 
@@ -135,7 +119,7 @@ class EpisodeExtractor:
             response = await self._llm(prompt)
             parsed = self._parse_response(response)
 
-            # Stage 4 新增: 保存完整 LLM I/O
+
             if self._extraction_writer:
                 try:
                     round_ids = [getattr(r, 'round_id', 0) for r in filtered_batch]
@@ -155,9 +139,9 @@ class EpisodeExtractor:
 
     @staticmethod
     def _parse_response(response: str) -> list[dict]:
-        """解析 LLM JSON 响应"""
+        """Implementation details."""
         try:
-            # 尝试直接解析
+
             data = json.loads(response)
             if isinstance(data, dict) and "episodes" in data:
                 return data["episodes"]
@@ -166,7 +150,7 @@ class EpisodeExtractor:
         except json.JSONDecodeError:
             pass
 
-        # 尝试从 markdown code block 中提取 JSON
+
         json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
         if json_match:
             try:
@@ -176,7 +160,7 @@ class EpisodeExtractor:
             except json.JSONDecodeError:
                 pass
 
-        # 尝试寻找 JSON 对象
+
         brace_match = re.search(r"\{[^{}]*\"episodes\"[^{}]*\[.*?\]\s*\}", response, re.DOTALL)
         if brace_match:
             try:
@@ -188,18 +172,18 @@ class EpisodeExtractor:
         logger.warning("EpisodeExtractor: failed to parse LLM response")
         return []
 
-    # ── 后过滤 (确定性) ──
+
 
     def _post_filter(self, episode: dict) -> bool:
-        """确定性后过滤 — 丢弃含可观测状态或低质量的 Episode"""
+        """Implementation details."""
         self._stats["total_candidates"] += 1
 
-        # 必须有 design_insight
+
         if not episode.get("design_insight", "").strip():
             self._stats["empty_insight_rejected"] += 1
             return False
 
-        # 检查可观测状态模式
+
         insight = episode["design_insight"].lower()
         for pattern in OBSERVABLE_PATTERNS:
             if re.search(pattern, insight):
@@ -211,7 +195,7 @@ class EpisodeExtractor:
 
     @property
     def observable_reject_rate(self) -> float:
-        """可观测状态拒绝率 — 持续 >50% 说明 LLM Prompt 需要调优"""
+        """Implementation details."""
         total = self._stats["total_candidates"]
         if total == 0:
             return 0.0
@@ -219,12 +203,12 @@ class EpisodeExtractor:
 
     @property
     def stats(self) -> dict:
-        """返回提取统计信息"""
+        """Implementation details."""
         s = dict(self._stats)
         s["observable_reject_rate"] = self.observable_reject_rate
         return s
 
-    # ── 端到端提取 + 存储 ──
+
 
     async def extract_and_store(
         self,
@@ -234,12 +218,7 @@ class EpisodeExtractor:
         *,
         store: bool = True,
     ) -> list[DesignEpisode]:
-        """端到端: 提取 → 构建 DesignEpisode → (可选)存储 → 发布事件
-
-        Args:
-            store: 为 False 时仅返回 DesignEpisode 列表，不写入 LTM。
-                   memory_v2 路径下由调用方暂存到 WM。
-        """
+        """Implementation details."""
         _bid = self._batch_counter
 
         # Pre-filter (deterministic)
@@ -308,7 +287,7 @@ class EpisodeExtractor:
         logger.info("Extracted %d episodes from %d rounds (batch %d)",
                     len(stored), len(batch), _bid)
 
-        # 注: 原 Stage 4 实时 AtomicPreference 提取路径已废弃。
-        # 偏好由 Consolidator._consolidate_preferences() 在 Job 结束时统一写 UserProfile。
+
+
 
         return stored

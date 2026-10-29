@@ -1,10 +1,4 @@
-"""
-TemplateComplianceChecker — 验证生成的 HTML 是否符合模板约束 (Stage 7)
-
-检查项：颜色、字体、元素数量、字符长度
-可自动修复：颜色违规、字体违规
-不可修复（反馈给模型重试）：元素数量不匹配
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -27,26 +21,26 @@ if TYPE_CHECKING:
 
 
 # ═══════════════════════════════════════════════
-# 数据模型
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class ComplianceIssue:
-    """合规检查问题"""
+    """Implementation details."""
     type: Literal["color", "font", "element_count", "char_limit", "image", "visual_asset"]
     severity: Literal["error", "warning"]
     message: str
-    location: str  # CSS selector 或元素描述
+    location: str
     auto_fixable: bool
     fix_suggestion: str = ""
 
 
 # ═══════════════════════════════════════════════
-# 颜色格式工具函数
+
 # ═══════════════════════════════════════════════
 
 def rgb_to_hex(rgb_str: str) -> str:
-    """将 rgb(r,g,b) 或 rgba(r,g,b,a) 转换为 #rrggbb 格式"""
+    """Implementation details."""
     match = re.match(r'rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)', rgb_str)
     if match:
         r, g, b = int(match.group(1)), int(match.group(2)), int(match.group(3))
@@ -55,7 +49,7 @@ def rgb_to_hex(rgb_str: str) -> str:
 
 
 def normalize_hex(color: str) -> str:
-    """标准化 hex 颜色为 6 位小写格式"""
+    """Implementation details."""
     color = color.strip().lower()
     if color.startswith("#"):
         hex_part = color[1:]
@@ -66,7 +60,7 @@ def normalize_hex(color: str) -> str:
 
 
 def normalize_color(color: str) -> str:
-    """将任意颜色格式标准化为 #rrggbb"""
+    """Implementation details."""
     color = color.strip()
     if color.startswith("rgb"):
         return rgb_to_hex(color)
@@ -109,7 +103,7 @@ def _contrast_ratio(c1: str, c2: str) -> float:
 
 
 # ═══════════════════════════════════════════════
-# 安全颜色集合
+
 # ═══════════════════════════════════════════════
 
 SAFE_COLORS = {
@@ -126,32 +120,29 @@ SAFE_FONTS = {
 
 
 # ═══════════════════════════════════════════════
-# 正则模式
+
 # ═══════════════════════════════════════════════
 
-# hex 颜色
+
 _HEX_PATTERNS = [
     re.compile(r"(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})", re.IGNORECASE),
     re.compile(r"background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})", re.IGNORECASE),
     re.compile(r"border(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})", re.IGNORECASE),
 ]
 
-# rgb/rgba 颜色
+
 _RGB_PATTERNS = [
     re.compile(r"(?:^|;)\s*color\s*:\s*(rgba?\([^)]+\))", re.IGNORECASE),
     re.compile(r"background(?:-color)?\s*:\s*(rgba?\([^)]+\))", re.IGNORECASE),
     re.compile(r"border(?:-color)?\s*:\s*(rgba?\([^)]+\))", re.IGNORECASE),
 ]
 
-# 字体
+
 _FONT_PATTERN = re.compile(r"font-family\s*:\s*([^;]+)", re.IGNORECASE)
 
 
 def _color_hex_distance(c1: str, c2: str) -> int:
-    """计算两个 #rrggbb 颜色的 RGB 通道差值之和（0~765）。
-
-    用于判断两个颜色是否"足够接近"，距离 < 30 时可跳过修复。
-    """
+    """Implementation details."""
     try:
         c1 = normalize_color(c1)
         c2 = normalize_color(c2)
@@ -165,14 +156,11 @@ def _color_hex_distance(c1: str, c2: str) -> int:
 
 
 def _infer_css_role(location: str) -> str:
-    """从 ComplianceIssue.location 推断颜色的 CSS 语义角色。
-
-    Returns: "background" | "text" | "border" | "unknown"
-    """
+    """Implementation details."""
     loc = location.lower()
     if "background" in loc:
         return "background"
-    # "color:" 但不是 "background-color:" / "border-color:"
+
     if re.search(r'(?<!-)color\s*:', loc):
         return "text"
     if "border" in loc:
@@ -252,7 +240,7 @@ def _merge_color_roles(
 
 
 class TemplateComplianceChecker:
-    """模板合规检查器"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -279,7 +267,7 @@ class TemplateComplianceChecker:
         )
 
     def _build_allowed_colors(self) -> set[str]:
-        """构建允许的颜色集合（全部标准化为 #rrggbb）"""
+        """Implementation details."""
         colors = set(SAFE_COLORS)
         if not self.dc or not self.dc.color_palette:
             return colors
@@ -307,7 +295,7 @@ class TemplateComplianceChecker:
         return colors
 
     def _build_allowed_fonts(self) -> set[str]:
-        """构建允许的字体集合（全部小写）"""
+        """Implementation details."""
         fonts = set(SAFE_FONTS)
         if not self.dc or not self.dc.typography:
             return fonts
@@ -418,7 +406,7 @@ class TemplateComplianceChecker:
         return "any" in roles or css_role in roles or css_role == "unknown"
 
     # ══════════════════════════════════════════════
-    # 主入口
+
     # ══════════════════════════════════════════════
 
     def check(
@@ -427,7 +415,7 @@ class TemplateComplianceChecker:
         layout_name: str = "",
         file_path: str | Path | None = None,
     ) -> list[ComplianceIssue]:
-        """运行全部检查"""
+        """Implementation details."""
         issues: list[ComplianceIssue] = []
         issues.extend(self._check_colors(html_content))
         issues.extend(self._check_semantic_contrast(html_content))
@@ -439,17 +427,13 @@ class TemplateComplianceChecker:
         return issues
 
     # ══════════════════════════════════════════════
-    # 自动修复
+
     # ══════════════════════════════════════════════
 
     def auto_fix(
         self, html_content: str, issues: list[ComplianceIssue]
     ) -> tuple[str, list[ComplianceIssue]]:
-        """修复可自动修复的问题
-
-        Returns:
-            tuple[str, list[ComplianceIssue]]: (修复后的 HTML, 已修复的问题列表)
-        """
+        """Implementation details."""
         fixed_html = html_content
         fixed_issues: list[ComplianceIssue] = []
 
@@ -467,11 +451,11 @@ class TemplateComplianceChecker:
         return fixed_html, fixed_issues
 
     # ══════════════════════════════════════════════
-    # 格式化输出
+
     # ══════════════════════════════════════════════
 
     def format_issues_for_retry(self, issues: list[ComplianceIssue]) -> str:
-        """格式化问题供模型重试"""
+        """Implementation details."""
         if not issues:
             return ""
 
@@ -486,23 +470,19 @@ class TemplateComplianceChecker:
         return "\n".join(lines)
 
     # ══════════════════════════════════════════════
-    # 内部检查方法
+
     # ══════════════════════════════════════════════
 
     def _check_colors(self, html_content: str) -> list[ComplianceIssue]:
-        """检查颜色是否在允许集合中。
-
-        location 字段保存 CSS 属性上下文（如 "background-color: #xxx"），
-        供 _fix_color 推断语义角色。
-        """
+        """Implementation details."""
         if not self._allowed_colors or not self.dc or not self.dc.color_palette:
             return []
 
         issues: list[ComplianceIssue] = []
-        # (normalized_color, css_property_context) — 去重
+
         found_colors: set[tuple[str, str]] = set()
 
-        # 带属性名的颜色正则：捕获 (属性名, 颜色值)
+
         _prop_color_re = re.compile(
             r'(background(?:-color)?|(?<!-)color|border(?:-color)?)'
             r'\s*:\s*'
@@ -519,7 +499,7 @@ class TemplateComplianceChecker:
                 raw_color = m.group(2)
                 found_colors.add((raw_color, f"{prop_name}: {raw_color}"))
 
-        # 2. <style> 块
+
         css_block_pattern = re.compile(r'<style[^>]*>(.*?)</style>', re.IGNORECASE | re.DOTALL)
         for css_match in css_block_pattern.finditer(html_content):
             css_content = css_match.group(1)
@@ -528,7 +508,7 @@ class TemplateComplianceChecker:
                 raw_color = m.group(2)
                 found_colors.add((raw_color, f"{prop_name}: {raw_color}"))
 
-            # linear-gradient 中的颜色
+
             gradient_pattern = re.compile(
                 r'linear-gradient\s*\([^)]*?(#[0-9a-fA-F]{3,6})[^)]*?\)', re.IGNORECASE
             )
@@ -536,7 +516,7 @@ class TemplateComplianceChecker:
                 color = grad_match.group(1)
                 found_colors.add((color, f"background: gradient {color}"))
 
-        # 找最近的 palette 颜色（用于 fix_suggestion）
+
         cp = self.dc.color_palette
 
         for raw_color, context in found_colors:
@@ -547,7 +527,7 @@ class TemplateComplianceChecker:
             if self._is_user_preference_color(raw_color, context):
                 continue
 
-            # 颜色相似度跳过：与任一 palette 颜色距离 < 30 时不报错
+
             skip = False
             for attr in (
                 "primary",
@@ -573,7 +553,7 @@ class TemplateComplianceChecker:
             if skip:
                 continue
 
-            # 根据 CSS 属性推断建议替换色
+
             role = _infer_css_role(context)
             if role == "background":
                 suggestion = cp.surface or cp.background or cp.primary or ""
@@ -774,7 +754,7 @@ class TemplateComplianceChecker:
         return issues
 
     def _check_fonts(self, html_content: str) -> list[ComplianceIssue]:
-        """检查字体是否在允许集合中"""
+        """Implementation details."""
         if not self._allowed_fonts or not self.dc or not self.dc.typography:
             return []
 
@@ -786,7 +766,7 @@ class TemplateComplianceChecker:
 
             for font_match in _FONT_PATTERN.finditer(style_val):
                 font_value = font_match.group(1).strip().rstrip(";")
-                # 检查字体列表中是否包含任何允许字体
+
                 font_lower = font_value.lower()
                 if not any(allowed in font_lower for allowed in self._allowed_fonts):
                     title_font = self.dc.typography.title_font or ""
@@ -802,13 +782,7 @@ class TemplateComplianceChecker:
         return issues
 
     def _check_element_count(self, html_content: str, layout_name: str) -> list[ComplianceIssue]:
-        """检查元素数量是否匹配模板。
-
-        优先统计 <div data-element="..."> 容器（与 design_prompt.md.j2 约定一致）。
-        如果 HTML 中没有 data-element 标记，fallback 到统计顶层 <section> 或
-        直接子 <div> 中包含文本/图片的数量。
-        同时检查偏少和偏多。
-        """
+        """Implementation details."""
         layout_data = self.si.get(layout_name)
         if not layout_data or not isinstance(layout_data, dict):
             return []
@@ -822,7 +796,7 @@ class TemplateComplianceChecker:
 
         issues: list[ComplianceIssue] = []
 
-        # 策略 1: data-element 容器（推荐）
+
         text_elements = re.findall(
             r'<div[^>]*data-element=["\'][^"\']*["\'][^>]*>(?:(?!<div\b).)*?(?:<p|<h[1-6]|<li|<span)',
             html_content, re.IGNORECASE | re.DOTALL,
@@ -834,10 +808,10 @@ class TemplateComplianceChecker:
         has_data_element = bool(text_elements or image_elements)
 
         if not has_data_element:
-            # 策略 2 fallback: 统计 <section> 子元素
+
             sections = re.findall(r'<section\b[^>]*>(.*?)</section>', html_content, re.IGNORECASE | re.DOTALL)
             if sections:
-                # 每个 section 算一个内容容器
+
                 actual_text = sum(
                     1 for s in sections
                     if re.search(r'<(?:p|h[1-6]|li)\b', s, re.IGNORECASE)
@@ -847,14 +821,14 @@ class TemplateComplianceChecker:
                     if re.search(r'<img\b', s, re.IGNORECASE)
                 )
             else:
-                # 策略 3 fallback: 粗略统计（保留旧逻辑但放宽阈值）
+
                 actual_text = len(re.findall(r"<(?:p|h[1-6])\b[^>]*>", html_content, re.IGNORECASE))
                 actual_image = len(re.findall(r"<img\b[^>]*>", html_content, re.IGNORECASE))
         else:
             actual_text = len(text_elements)
             actual_image = len(image_elements)
 
-        # 文本元素偏少检查
+
         if expected_text > 0 and actual_text < max(1, int(expected_text * 0.5)):
             issues.append(ComplianceIssue(
                 type="element_count",
@@ -865,7 +839,7 @@ class TemplateComplianceChecker:
                 fix_suggestion=f"请确保生成 {expected_text} 个文本元素",
             ))
 
-        # 文本元素偏多检查（仅在有 data-element 标记时检查，避免 fallback 误报）
+
         if has_data_element and expected_text > 0 and actual_text > expected_text * 2:
             issues.append(ComplianceIssue(
                 type="element_count",
@@ -876,7 +850,7 @@ class TemplateComplianceChecker:
                 fix_suggestion=f"请精简到 {expected_text} 个文本元素",
             ))
 
-        # 图片元素偏少检查
+
         if expected_image > 0 and actual_image < max(1, int(expected_image * 0.5)):
             issues.append(ComplianceIssue(
                 type="element_count",
@@ -887,7 +861,7 @@ class TemplateComplianceChecker:
                 fix_suggestion=f"请确保生成 {expected_image} 个图片元素",
             ))
 
-        # 图片元素偏多检查
+
         if has_data_element and expected_image > 0 and actual_image > expected_image * 2:
             issues.append(ComplianceIssue(
                 type="element_count",
@@ -901,10 +875,7 @@ class TemplateComplianceChecker:
         return issues
 
     def _check_char_limits(self, html_content: str, layout_name: str) -> list[ComplianceIssue]:
-        """检查字符长度是否符合模板限制。
-
-        Task 13 (C3): 使用 P75 百分位数作为基准，放宽阈值，增加最小基准值和中英文宽度系数。
-        """
+        """Implementation details."""
         if self._template_mode == "style_reference":
             return []
 
@@ -915,7 +886,7 @@ class TemplateComplianceChecker:
         elements = layout_data.get("elements", [])
         issues: list[ComplianceIssue] = []
 
-        # 计算 P75 百分位数
+
         def _p75(lengths: list[int]) -> int:
             if not lengths:
                 return 0
@@ -923,18 +894,18 @@ class TemplateComplianceChecker:
             idx = int(len(s) * 0.75)
             return s[min(idx, len(s) - 1)]
 
-        # 中英文宽度系数：模板语言 vs 生成内容语言
+
         lang_coeff = 1.0
         template_lang = self.si.get("language", {}).get("lid", "")
         if template_lang in ("zh", "zh-cn", "zh-tw"):
-            # 检测 HTML 中英文字符占比
+
             text_only = re.sub(r"<[^>]+>", "", html_content)
             cn_chars = sum(1 for c in text_only if '\u4e00' <= c <= '\u9fff')
             total = max(len(text_only.strip()), 1)
             if cn_chars / total < 0.1:
-                lang_coeff = 1.5  # 英文字符窄，允许更多字符
+                lang_coeff = 1.5
 
-        # 提取标题和正文元素的字符基准
+
         title_limits: list[int] = []
         body_limits: list[int] = []
         for el in elements:
@@ -947,9 +918,9 @@ class TemplateComplianceChecker:
                 continue
             baseline = _p75(lengths)
             if "title" in el_name:
-                title_limits.append(max(baseline, 10))  # 最小基准 10 字
+                title_limits.append(max(baseline, 10))
             elif any(k in el_name for k in ("body", "text", "content", "desc")):
-                body_limits.append(max(baseline, 30))  # 最小基准 30 字
+                body_limits.append(max(baseline, 30))
 
         title_multiplier = 1.5
         body_multiplier = 2.0
@@ -966,7 +937,7 @@ class TemplateComplianceChecker:
             min_body_baseline = 48
             skip_secondary_title_checks = True
 
-        # 检查 h1/h2 标题长度
+
         if title_limits:
             title_limit = int(max(max(title_limits), min_title_baseline) * title_multiplier * lang_coeff)
             for tag_match in re.finditer(r"<(h[12])[^>]*>(.*?)</h[12]>", html_content, re.DOTALL | re.IGNORECASE):
@@ -984,7 +955,7 @@ class TemplateComplianceChecker:
                         fix_suggestion=f"请将标题缩短到 {title_limit} 字以内",
                     ))
 
-        # 检查 p 正文长度
+
         if body_limits:
             body_limit = int(max(max(body_limits), min_body_baseline) * body_multiplier * lang_coeff)
             for tag_match in re.finditer(r"<p[^>]*>(.*?)</p>", html_content, re.DOTALL | re.IGNORECASE):
@@ -1002,17 +973,11 @@ class TemplateComplianceChecker:
         return issues
 
     # ══════════════════════════════════════════════
-    # 修复方法
+
     # ══════════════════════════════════════════════
 
     def _fix_color(self, html: str, issue: ComplianceIssue) -> str:
-        """修复颜色违规 — 根据 CSS 语义角色选择替换色。
-
-        background 上下文 → palette.background
-        text 上下文       → palette.text
-        border 上下文     → palette.accent / secondary
-        其他              → palette.primary
-        """
+        """Implementation details."""
         match = re.search(r"(#[0-9a-fA-F]{3,6}|rgba?\([^)]+\))", issue.message)
         if not match:
             return html
@@ -1039,7 +1004,7 @@ class TemplateComplianceChecker:
         return html.replace(old_color, new_color)
 
     def _fix_font(self, html: str, issue: ComplianceIssue) -> str:
-        """修复字体违规 — 替换为模板字体"""
+        """Implementation details."""
         if not self.dc or not self.dc.typography:
             return html
 

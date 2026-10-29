@@ -708,11 +708,7 @@ def _extract_pptx_export_diagnostics(error_details: str) -> tuple[list[dict[str,
 
 
 def _is_shrinkable_error(error_message: str) -> bool:
-    """Check if the error is a layout overflow that can be fixed by shrinking.
-
-    Note: 尺寸不匹配 ("don't match presentation layout") 不是压缩能解决的，
-    需要 Agent 重新生成该页，不应在此处理。
-    """
+    """Implementation details."""
     return 'overflows body' in error_message or 'too close to bottom edge' in error_message
 
 
@@ -1530,7 +1526,7 @@ async def convert_html_to_pptx_with_retry(
                             last_error = retry_e
                             error_msg = str(retry_e)
 
-                # 尺寸不匹配：先尝试自动修正 body CSS，修正后重试一次
+
                 if "don't match presentation layout" in error_msg:
                     failing_path = _parse_failing_html_path(error_msg)
                     if failing_path and Path(failing_path).exists():
@@ -1538,7 +1534,7 @@ async def convert_html_to_pptx_with_retry(
                             Path(failing_path), aspect_ratio
                         )
                         if fixed:
-                            # 修正成功，立即重试（不计入 shrink 次数）
+
                             warning(
                                 f"Auto-fixed dimension mismatch in "
                                 f"{Path(failing_path).name}, retrying conversion"
@@ -1548,12 +1544,12 @@ async def convert_html_to_pptx_with_retry(
                                     html_inputs, output_pptx, aspect_ratio,
                                 )
                             except RuntimeError as retry_e:
-                                # 修正尺寸后仍有其他错误（如 overflow），
-                                # 让它走正常的 shrink 重试流程
+
+
                                 last_error = retry_e
                                 error_msg = str(retry_e)
                                 if "don't match presentation layout" not in error_msg:
-                                    # 尺寸已修正，但有 overflow 等可压缩错误
+
                                     if _is_shrinkable_error(error_msg) and attempt < max_retries:
                                         fp = _parse_failing_html_path(error_msg)
                                         if fp and Path(fp).exists():
@@ -1563,9 +1559,9 @@ async def convert_html_to_pptx_with_retry(
                                                 f"({label}, attempt {attempt + 1}/{max_retries})"
                                             )
                                         continue
-                                # 尺寸修正后仍然尺寸不匹配，放弃
 
-                    # 记录到 ExperienceTrace
+
+
                     if experience_writer and session_id:
                         try:
                             from .layout_overflow_recorder import record_dimension_mismatch
@@ -1578,7 +1574,7 @@ async def convert_html_to_pptx_with_retry(
                                 )
                         except Exception as rec_err:
                             warning(f"Failed to record dimension mismatch: {rec_err}")
-                    # 自动修正失败，抛出清晰错误让 Agent 重新生成
+
                     raise RuntimeError(
                         f"HTML aspect ratio mismatch - regenerate slide with correct dimensions. "
                         f"File: {failing_path or 'unknown'}. {error_msg}"
@@ -1638,7 +1634,7 @@ async def convert_html_to_pptx_with_retry(
             "converting with layout validation skipped"
         )
 
-        # 记录布局溢出到 ExperienceTrace
+
         if experience_writer and session_id:
             try:
                 from .layout_overflow_recorder import record_layout_overflow

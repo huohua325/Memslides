@@ -241,14 +241,14 @@ class AgentLoop(_AgentLoopRuntimeBindings):
         self._session: InteractiveSession | None = None
         # Clarification flow state (yield-resume pattern)
         self._clarification_answer: str | None = None
-        # Stage 7: 模板状态持久化（供 modify() 访问）
+
         self._template_profile: Any = None
         self._guide_builder: Any = None
         self._template_runtime_state: Any = None
-        # Stage 9: 模板记忆关联
-        self._current_template_id: str = ""  # 当前 run 使用的模板 ID
+
+        self._current_template_id: str = ""
         self._template_selection_manager: Any = None  # TemplateSelectionManager
-        # Scope-aware preference: 跨轮次保存上一轮的 intent context，供 SYSTEM 注入使用
+
         self._last_modify_context: dict = {}  # {"slide_type": ..., "element_type": ..., "template_id": ...}
         # MemoryOrchestrator instance (created lazily by _create_orchestrator)
         self._memory_orchestrator_instance: Any | None = None
@@ -3102,7 +3102,7 @@ class AgentLoop(_AgentLoopRuntimeBindings):
         success_only: bool = False,
         allow_unscoped_fallback: bool = True,
     ) -> list[Any]:
-        """优先按 intent / aspect_ratio 取模板使用历史，旧数据不足时再回退。"""
+        """Implementation details."""
         attempts: list[tuple[str, str]] = [
             (request_intent, aspect_ratio),
             (request_intent, ""),
@@ -3150,7 +3150,7 @@ class AgentLoop(_AgentLoopRuntimeBindings):
         self,
         request: InputRequest,
     ) -> None:
-        """把 template_usage_history 派生为 intent 画像下的模板摘要。"""
+        """Implementation details."""
         if not self.memory_system:
             return
         if self._freeze_preference_writeback_current_job:
@@ -4060,7 +4060,7 @@ class AgentLoop(_AgentLoopRuntimeBindings):
             finally:
                 self._freeze_preference_writeback_current_job = False
 
-        # Stage 7: 保存注入日志到 workspace/.history 目录
+
         if self._guide_builder and self.workspace:
             try:
                 history_dir = self.workspace / ".history"
@@ -4070,14 +4070,14 @@ class AgentLoop(_AgentLoopRuntimeBindings):
             except Exception as e:
                 logger.warning(f"Failed to save injection logs (non-fatal): {e}")
 
-        # Stage 7: 清除 MCP Tool 模板上下文
+
         try:
             from memslides.tools.template_tools import clear_template_context
             clear_template_context()
         except Exception:
             pass
 
-        # Stage 3 改造 3.6: Experience GC — 在 session 结束时清理过期/低价值经验
+
         if self.has_memory:
             try:
                 _gc_writer = self._make_exp_writer()
@@ -4158,21 +4158,13 @@ class AgentLoop(_AgentLoopRuntimeBindings):
         tool_calls_log: list[dict],
         satisfaction: str = None,
     ):
-        """急救通道：用户不满意时立即提取教训（Stage 5）
-
-        Args:
-            memory: MemorySystem 实例
-            message: 用户消息
-            agent_response: Agent 响应
-            tool_calls_log: 工具调用日志
-            satisfaction: 满意度信号 ("thumbs_down", "undo")
-        """
+        """Implementation details."""
         info(f"Emergency memory extraction triggered: satisfaction={satisfaction}")
 
-        # 1. 从负面反馈直接提取 AtomicPreference（无需完整 Episode）
-        # EpisodeExtractor 只支持 extract_and_store(batch, user_id, session_id)，
-        # 需要 CompactRound 批量输入，不适用于单条反馈。
-        # 改用 preference_extractor.extract_from_feedback() 直接提取偏好。
+
+
+
+
         if hasattr(memory, 'preference_extractor') and memory.preference_extractor:
             try:
                 prefs = await memory.preference_extractor.extract_from_feedback(
@@ -4188,8 +4180,8 @@ class AgentLoop(_AgentLoopRuntimeBindings):
             except Exception as e:
                 logger.warning(f"Emergency preference extraction failed: {e}")
 
-        # 3. 失败经验统一交给 round experience / job-end consolidation；
-        # 无 orchestrator 时才回退到旧的 direct-to-LTM 路径。
+
+
         if hasattr(memory, 'db') and memory.db and self._memory_orchestrator_instance is None:
             try:
                 exp_writer = self._make_exp_writer()
@@ -4200,7 +4192,7 @@ class AgentLoop(_AgentLoopRuntimeBindings):
                     session_id=self.workspace.stem,
                     user_task=message,
                     tool_calls_log=tool_calls_log,
-                    outcome="failure",  # 标记为失败
+                    outcome="failure",
                     agent_response=agent_response,
                     turn=self._modify_turn_count,
                     template_id=self._current_template_id,
@@ -4210,7 +4202,7 @@ class AgentLoop(_AgentLoopRuntimeBindings):
             except Exception as e:
                 logger.warning(f"Emergency experience write failed: {e}")
 
-    # ── Stage 8 Phase 2: Session Preference 提取与追加 ──
+
 
     _PREFERENCE_CATEGORIES = {"style", "color", "layout", "typography", "content", "general"}
     _PREFERENCE_RETENTION_SCOPES = {"job_local", "intent_profile", "default_profile"}
@@ -4529,7 +4521,7 @@ User Request: {user_message}"""
         )
 
     def _dump_current_round_wm_snapshot(self) -> bool:
-        """将当前 Round 的 WM 快照重写到 .memory/rounds/round_xxx/wm_snapshot.json。"""
+        """Implementation details."""
         live_dumped = _runtime_support.persist_live_wm_snapshot(self, reason="current_round")
         try:
             orchestrator = getattr(self, "_memory_orchestrator_instance", None)
@@ -4563,7 +4555,7 @@ User Request: {user_message}"""
             return False
 
     async def record_review_feedback_preference(self, feedback: str) -> bool:
-        """在评审结束后立即写入本轮反馈偏好，并刷新当前 Round 的 WM 快照。"""
+        """Implementation details."""
         feedback_text = str(feedback or "").strip()
         if not feedback_text:
             return False
@@ -4576,7 +4568,7 @@ User Request: {user_message}"""
         if not wrote:
             return False
 
-        # 下一次 modify 入口跳过一次 priming，避免同条偏好重复写入。
+
         self._skip_next_session_preference_priming = True
         dumped = self._dump_current_round_wm_snapshot()
         info(
@@ -4586,7 +4578,7 @@ User Request: {user_message}"""
         return True
 
     async def _analyze_template(self, template_path: str) -> Any:
-        """分析模板并提取技能。"""
+        """Implementation details."""
         import shutil
 
         try:
@@ -4733,15 +4725,15 @@ User Request: {user_message}"""
             cleaned[_clean_key(key)] = value
         return cleaned
 
-    # [DEPRECATED] _slide_induction_to_patterns 已废弃
-    # LayoutPattern / LayoutRegion 类已移除，布局信息直接由 slide_induction 承载
+
+
     # def _slide_induction_to_patterns(self, slide_induction: dict, shape_geometry: dict = None) -> list:
-    #     """从 slide_induction 生成 LayoutPattern 列表 [DEPRECATED]"""
+
     #     pass
 
     def _compute_position_label(self, left_pct: float, top_pct: float, width_pct: float, height_pct: float) -> str:
-        """根据坐标百分比计算位置标签（如 top-left, center, bottom-right）"""
-        # 水平位置
+        """Implementation details."""
+
         center_x = left_pct + width_pct / 2
         if center_x < 33:
             h_pos = "left"
@@ -4750,7 +4742,7 @@ User Request: {user_message}"""
         else:
             h_pos = "center"
 
-        # 垂直位置
+
         center_y = top_pct + height_pct / 2
         if center_y < 33:
             v_pos = "top"
@@ -4759,7 +4751,7 @@ User Request: {user_message}"""
         else:
             v_pos = "middle"
 
-        # 组合
+
         if h_pos == "center" and v_pos == "middle":
             return "center"
         elif v_pos == "middle":
@@ -4770,10 +4762,7 @@ User Request: {user_message}"""
             return f"{v_pos}-{h_pos}"
 
     async def _extract_qa_preference(self, question: str, answer: str) -> Any:
-        """从 QA 对话中提取用户偏好并存储
-
-        Stage 5: ask_user_clarification 即时记忆提取
-        """
+        """Implementation details."""
         if not self.memory_system:
             return None
 
@@ -4782,11 +4771,11 @@ User Request: {user_message}"""
             if not extractor:
                 return None
 
-            # 检查是否有 extract_from_qa 方法
+
             if hasattr(extractor, 'extract_from_qa'):
                 pref = await extractor.extract_from_qa(question, answer)
             else:
-                # 降级：使用通用提取方法
+
                 combined_text = f"用户问答记录：\n问: {question}\n答: {answer}"
                 pref = await extractor.extract(combined_text, user_id=self.user_id)
 
@@ -4813,16 +4802,12 @@ User Request: {user_message}"""
         before_params: Any = None,  # G2 Phase 1
         after_params: Any = None,   # G2 Phase 1
         target_slide: str = None,   # G2 Phase 1
-        agent_round: Any = None,    # Stage 4: AgentRound 统一输入
-        force_extract: bool = False,  # Stage 5: 急救通道
-        satisfaction: str = None,  # Stage 5: 满意度信号
+        agent_round: Any = None,
+        force_extract: bool = False,
+        satisfaction: str = None,
     ):
-        """Post-modification memory processing (runs in background).
+        """Implementation details."""
 
-        Stage 4 改造: 优先使用 AgentRound 统一输入，fallback 到旧方法。
-        Stage 5 增强: force_extract=True 时同步提取并优先提取"避坑指南"。
-        """
-        # Stage 5: 急救通道 — 用户不满意时立即提取教训
         if force_extract and memory:
             try:
                 await self._emergency_memory_extraction(
@@ -4832,12 +4817,12 @@ User Request: {user_message}"""
                 logger.warning(f"Emergency memory extraction failed: {e}")
         try:
             # ── 1. Rule extraction — DEPRECATED (Stage 2.5) ──
-            # IntelligentRuleExtractor → SimpleRuleStore 写入的规则从未被读取
-            # ProceduralRule 改由 EpisodeExtractor 快速规则路径 + RuleInductor 归纳产生
-            # 原代码见 git history
+
+
+
 
             # 2. Experience extraction
-            # Stage 15: 有 orchestrator 时，不再中途 direct-to-LTM，由 on_round_end/job_end 统一归档。
+
             if hasattr(memory, "db") and memory.db and self._memory_orchestrator_instance is None:
                 try:
                     exp_writer = self._make_exp_writer()
@@ -4845,7 +4830,7 @@ User Request: {user_message}"""
                     if any(t.get("is_error") for t in tool_calls_log):
                         outcome = "partial"
 
-                    # Stage 4: 优先使用 from_agent_round() 统一输入
+
                     traces = []
                     primary_trace = None
                     _traces_count = 0
@@ -4854,7 +4839,7 @@ User Request: {user_message}"""
                         primary_trace = traces[0] if traces else None
                         _traces_count = len(traces)
 
-                    # Fallback: 使用旧方法 (向后兼容)
+
                     if not traces:
                         traces = await exp_writer.from_modify_structured(
                             session_id=self.workspace.stem,
@@ -4900,12 +4885,12 @@ User Request: {user_message}"""
                 })
 
             # ── 4. FactualMemory recording — DEPRECATED (Stage 2.5) ──
-            # ToolCallSegment 的 _extract_html_changes/_extract_html_diff 已包含相同的 before/after 参数变化
-            # FactualRecord 写入的数据从未被任何读取路径消费
+
+
 
             # 8. Stage 2: Cognitive Episode Extraction
-            # Stage 15: orchestrator 模式下由 on_round_end + job_end 统一管理 Episode，
-            # 避免这里 direct-to-LTM 与 WM/consolidation 双写同一 round。
+
+
             if (
                 hasattr(memory, 'collector') and memory.collector
                 and self._memory_orchestrator_instance is None

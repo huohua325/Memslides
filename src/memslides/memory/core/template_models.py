@@ -1,13 +1,4 @@
-"""TemplateProfile 数据模型 (Stage 5)
-
-定义模板档案相关的数据结构：
-- DesignConstraints: 设计约束
-- ContentPatterns: 内容模式
-- TemplateProfile: 综合模板档案
-
-布局信息直接由 slide_induction 承载，
-不再使用冗余的 LayoutPattern / ContentMapping 中间层。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -19,23 +10,23 @@ from typing import Any
 
 
 # ═══════════════════════════════════════════════
-# 样式相关模型
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class ColorPalette:
-    """配色方案"""
-    primary: str = ""  # 主色
-    secondary: str = ""  # 辅助色
-    accent: str = ""  # 强调色
-    background: str = ""  # 背景色
-    text: str = ""  # 文字色
-    surface: str = ""  # 内容承载面/卡片面
-    primary_text: str = ""  # 浅背景主文本
-    inverse_text: str = ""  # 深背景反白文本
-    muted_text: str = ""  # 次级文本
-    border: str = ""  # 线条/边框
-    additional: list[str] = field(default_factory=list)  # 其他颜色
+    """Implementation details."""
+    primary: str = ""
+    secondary: str = ""
+    accent: str = ""
+    background: str = ""
+    text: str = ""
+    surface: str = ""
+    primary_text: str = ""
+    inverse_text: str = ""
+    muted_text: str = ""
+    border: str = ""
+    additional: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -59,7 +50,7 @@ class ColorPalette:
 
 @dataclass
 class Typography:
-    """字体排版"""
+    """Implementation details."""
     title_font: str = ""
     title_size: int = 0
     body_font: str = ""
@@ -90,7 +81,7 @@ class Typography:
 
 @dataclass
 class ChartStyle:
-    """图表风格"""
+    """Implementation details."""
     default_type: str = ""  # bar, line, pie, etc.
     color_scheme: list[str] = field(default_factory=list)
     show_legend: bool = True
@@ -111,7 +102,7 @@ class ChartStyle:
 
 @dataclass
 class DesignConstraints:
-    """设计约束"""
+    """Implementation details."""
     color_palette: ColorPalette = field(default_factory=ColorPalette)
     typography: Typography = field(default_factory=Typography)
     spacing: dict[str, Any] = field(default_factory=dict)  # margin, padding
@@ -136,12 +127,12 @@ class DesignConstraints:
 
 
 # ═══════════════════════════════════════════════
-# 内容模式
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class ContentPatterns:
-    """内容模式"""
+    """Implementation details."""
     info_density: str = "medium"  # low, medium, high
     narrative_style: str = ""  # business, academic, casual
     typical_sections: list[str] = field(default_factory=list)  # opening, content, ending
@@ -305,34 +296,34 @@ class TemplateSemanticModel:
 
 
 # ═══════════════════════════════════════════════
-# 综合模板技能
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class TemplateProfile:
-    """模板档案 — 综合所有提取的模板知识"""
+    """Implementation details."""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = ""
     description: str = ""
 
-    # 来源
-    template_source: str = ""  # 原始 PPT 文件路径
+
+    template_source: str = ""
     slide_count: int = 0
     aspect_ratio: str = "16:9"
 
-    # slide_induction 原始布局数据（新增）
-    slide_induction: dict[str, Any] = field(default_factory=dict)  # 完整的 slide_induction.json
+
+    slide_induction: dict[str, Any] = field(default_factory=dict)
     semantic_model: TemplateSemanticModel = field(default_factory=TemplateSemanticModel)
-    template_dir: str = ""  # 模板存储目录（含 source.pptx, images/, slide_images/）
+    template_dir: str = ""
     image_stats: dict[str, Any] = field(default_factory=dict)  # image_stats.json
 
-    # 提取的技能（memslides 增量）
+
     design_constraints: DesignConstraints = field(default_factory=DesignConstraints)
     content_patterns: ContentPatterns = field(default_factory=ContentPatterns)
 
-    # 元数据
+
     confidence: float = 0.8
-    shape_geometry_path: str = ""  # Task 12: 指向 shape_geometry.json 的路径
+    shape_geometry_path: str = ""
     user_id: str = ""
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -346,12 +337,12 @@ class TemplateProfile:
             "template_source": self.template_source,
             "slide_count": self.slide_count,
             "aspect_ratio": self.aspect_ratio,
-            # slide_induction 原始布局数据
+
             "slide_induction": self.slide_induction,
             "semantic_model": self.semantic_model.to_dict(),
             "template_dir": self.template_dir,
             "image_stats": self.image_stats,
-            # memslides 增量
+
             "design_constraints": self.design_constraints.to_dict(),
             "content_patterns": self.content_patterns.to_dict(),
             "confidence": self.confidence,
@@ -371,14 +362,14 @@ class TemplateProfile:
             template_source=data.get("template_source", ""),
             slide_count=data.get("slide_count", 0),
             aspect_ratio=data.get("aspect_ratio", "16:9"),
-            # slide_induction 原始布局数据
+
             slide_induction=data.get("slide_induction", {}),
             semantic_model=TemplateSemanticModel.from_dict(
                 data.get("semantic_model", {})
             ),
             template_dir=data.get("template_dir", ""),
             image_stats=data.get("image_stats", {}),
-            # memslides 增量
+
             design_constraints=DesignConstraints.from_dict(
                 data.get("design_constraints", {})
             ),

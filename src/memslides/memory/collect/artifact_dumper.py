@@ -1,43 +1,4 @@
-"""ArtifactDumper — 记忆管线中间产物转储器
-
-通过 config 开关控制启停，将 Round/Operation/Job 各阶段的关键中间数据
-序列化为 JSON 文件写入 .memory/ 目录，供人工审查和自动化测试断言使用。
-
-目录结构:
-  .memory/
-  ├── rounds/round_{index}/
-  │   ├── round_meta.json
-  │   ├── chain_segmentation.json
-  │   ├── preference_extraction.json
-  │   ├── round_summary.json
-  │   ├── wm_snapshot.json
-  │   ├── agent_round_{index}.json
-  │   └── profile_routing/                       ← ProfileInjectionRouter 决策产物（按 round 分目录）
-  │       ├── ltm_profile_snapshot.json           ← 从 LTM 加载的 UserProfile 快照
-  │       ├── routing_decisions.json              ← 路由决策（inject/skip/override/enrich）
-  │       └── wm_after_routing.json               ← 路由后 WM 中的偏好快照
-  ├── injection_traces/round_{index}/
-  │   ├── system_{agent_role}_turn_{turn}.json   ← Round 级注入 (4 组件)
-  │   └── op_{op_index}_{tool_name}.json         ← Operation 级注入 (4 组件)
-  │         两者使用统一的 dump_injection_trace 格式，包含:
-  │           wm_preferences        — ProfileInjectionRouter 注入的画像 + 当前 Job 偏好
-  │           wm_experiences        — remember_lesson 写入的临时经验
-  │           ltm_tool_experiences  — 工具链经验（仅 Operation 级别）
-  │           wm_round_history       — RoundSummary via JobHistory
-  │         Operation 级别通常只有 ltm_tool_experiences 非空，
-  │         其余组件已在 System 级别注入。
-  └── consolidation/
-      ├── tool_chains/merge_{signature}.json
-      ├── round_experiences/{category}/cluster_{index}_{trace_id}.json
-      ├── preferences/
-      │   ├── input_sources.json          ← 偏好提取输入（intent, slide_html_dir, raw_messages, slide_analysis）
-      │   ├── dimension_assignment.json
-      │   ├── profile_before.json
-      │   ├── profile_after.json
-      │   └── llm_merges/merge_{dimension}.json
-      ├── episodes/archived_episodes.json
-      └── consolidation_summary.json
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -53,16 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class ArtifactDumper:
-    """记忆管线中间产物转储器。
-
-    所有写入操作均 try/except 包裹，异常仅记录 WARNING 日志，
-    不向调用方传播。enabled=False 时跳过所有 I/O。
-    """
+    """Implementation details."""
 
     def __init__(self, memory_dir: Path, enabled: bool = False) -> None:
         self._memory_dir = Path(memory_dir)
         self._enabled = enabled
-        # 扫描已有 round 目录，计算 offset 避免重启 session 后覆盖
+
         self._round_offset = 0
         if enabled:
             try:
@@ -81,10 +38,10 @@ class ArtifactDumper:
                 pass
 
 
-    # ── 内部工具 ──
+
 
     def _resolve_round_index(self, round_index: int) -> int:
-        """将 Job 内的 round_index 转换为全局唯一编号（避免跨 session 覆盖）。"""
+        """Implementation details."""
         return round_index + self._round_offset
 
     def _resolve_task_index(self, task_index: int) -> int:
@@ -92,7 +49,7 @@ class ArtifactDumper:
         return self._resolve_round_index(task_index)
 
     def _write_json(self, path: Path, data: dict) -> None:
-        """安全写入 JSON 文件。异常仅记录日志。"""
+        """Implementation details."""
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             serialized = self._safe_serialize(data)
@@ -103,7 +60,7 @@ class ArtifactDumper:
 
     @staticmethod
     def _safe_serialize(obj: Any) -> Any:
-        """递归安全序列化，不可序列化对象降级为 str(obj)。"""
+        """Implementation details."""
         if obj is None or isinstance(obj, (str, int, float, bool)):
             return obj
         if isinstance(obj, (list, tuple)):
@@ -132,7 +89,7 @@ class ArtifactDumper:
             }
         return str(obj)
 
-    # ── Round 级 ──
+
 
     def dump_round_meta(
         self,
@@ -213,10 +170,7 @@ class ArtifactDumper:
         *,
         traces: list[dict] | None = None,
     ) -> None:
-        """转储完整执行轨迹（reasoning + tool_call + observation）。
-
-        替代旧版 compressed_segments.json，保留更多语义信息。
-        """
+        """Implementation details."""
         if not self._enabled:
             return
         round_index = self._resolve_round_index(round_index)
@@ -338,7 +292,7 @@ class ArtifactDumper:
             logger.warning("ArtifactDumper: failed to dump wm_snapshot: %s", e)
 
 
-    # ── Job 级 ──
+
 
     def dump_chain_merge(
         self,
@@ -444,7 +398,7 @@ class ArtifactDumper:
         try:
             pref_dir = self._memory_dir / "consolidation" / "preferences"
 
-            # input_sources.json — 记录偏好提取的输入数据
+
             self._write_json(
                 pref_dir / "input_sources.json",
                 {
@@ -522,7 +476,7 @@ class ArtifactDumper:
         except Exception as e:
             logger.warning("ArtifactDumper: failed to dump consolidation_summary: %s", e)
 
-    # ── ProfileInjectionRouter 产物 ──
+
 
     def dump_profile_routing(
         self,
@@ -537,23 +491,7 @@ class ArtifactDumper:
         summary: dict[str, str] | None = None,
         profile_load_status: dict[str, Any] | None = None,
     ) -> None:
-        """转储 ProfileInjectionRouter 的完整决策过程。
-
-        产物目录: .memory/rounds/round_NNN/profile_routing/
-        - ltm_profile_snapshot.json: 从 LTM 加载的 UserProfile 快照
-        - profile_load_status.json: 当前 read_intent 命中的画像是否为空/有内容
-        - routing_decisions.json: 路由决策详情（每个维度的 action/reason）
-        - wm_after_routing.json: 路由后 WM 中的偏好快照
-
-        Args:
-            round_index: 当前 round 序号（用于按轮次分目录）
-            user_prompt: 用户原始指令
-            intent: 意图分类结果
-            ltm_profile: 从 LTM 加载的 UserProfile 对象
-            decisions: ProfileInjectionRouter 的决策列表
-            wm_prefs_after: 路由后 WM 中的 TempPreference 列表
-            summary: 路由摘要统计
-        """
+        """Implementation details."""
         if not self._enabled:
             return
         try:
@@ -564,7 +502,7 @@ class ArtifactDumper:
             routing_dir = self._memory_dir / f"rounds/round_{round_index:03d}" / "profile_routing"
             routing_dir.mkdir(parents=True, exist_ok=True)
 
-            # 1. LTM Profile 快照
+
             if ltm_profile is not None:
                 profile_data = {
                     "timestamp": datetime.now().isoformat(),
@@ -576,7 +514,7 @@ class ArtifactDumper:
                 for dim_name in ["theme", "visual", "layout", "content", "template", "general"]:
                     dim_obj = getattr(ltm_profile, dim_name, None)
                     if dim_obj:
-                        # 提取维度的所有字段
+
                         dim_dict = {}
                         for field_name in dir(dim_obj):
                             if not field_name.startswith("_") and field_name not in ("keywords", "notes"):
@@ -590,7 +528,7 @@ class ArtifactDumper:
             if profile_load_status is not None:
                 self._write_json(routing_dir / "profile_load_status.json", profile_load_status)
 
-            # 2. 路由决策
+
             if decisions is not None:
                 decisions_data = {
                     "timestamp": datetime.now().isoformat(),
@@ -606,7 +544,7 @@ class ArtifactDumper:
                         "reason": getattr(d, "reason", ""),
                         "override_content": getattr(d, "override_content", ""),
                     })
-                # 按 action 分组统计
+
                 action_counts: dict[str, int] = {}
                 for d in decisions:
                     action = getattr(d, "action", "unknown")
@@ -614,7 +552,7 @@ class ArtifactDumper:
                 decisions_data["action_counts"] = action_counts
                 self._write_json(routing_dir / "routing_decisions.json", decisions_data)
 
-            # 3. 路由后 WM 偏好快照
+
             if wm_prefs_after is not None:
                 wm_data = {
                     "timestamp": datetime.now().isoformat(),
@@ -622,7 +560,7 @@ class ArtifactDumper:
                     "by_dimension": {},
                     "preferences": [],
                 }
-                # 按一级维度分组
+
                 for p in wm_prefs_after:
                     dim = getattr(p, "dimension", "") or "general"
                     top_level = dim.split(".")[0].capitalize() if "." in dim else dim.capitalize()
@@ -657,18 +595,7 @@ class ArtifactDumper:
         profile_dims_with_data: list[str] | None = None,
         fallback_reason: str = "",
     ) -> None:
-        """转储维度匹配过程（DimensionMatcher）。
-
-        产物路径: .memory/rounds/round_{index}/dimension_matching.json
-
-        Args:
-            round_index: Round 索引
-            user_message: 用户消息（用于匹配）
-            matched_dims: 匹配到的维度集合
-            match_method: 匹配方法（"vector_top_k" / "vector_single" / "keyword" / "fallback_all"）
-            profile_dims_with_data: Profile 中有数据的维度列表
-            fallback_reason: 降级原因（如果有）
-        """
+        """Implementation details."""
         if not self._enabled:
             return
         if round_index is None:
@@ -699,11 +626,7 @@ class ArtifactDumper:
         task_index: int | None = None,
         contract: dict[str, Any] | None = None,
     ) -> None:
-        """转储 runtime profile execution contract。
-
-        产物路径:
-        .memory/rounds/round_NNN/profile_routing/profile_execution_contract.json
-        """
+        """Implementation details."""
         if not self._enabled or not contract:
             return
         try:
@@ -723,11 +646,7 @@ class ArtifactDumper:
         task_index: int | None = None,
         plan: dict[str, Any] | None = None,
     ) -> None:
-        """转储 runtime profile execution plan。
-
-        产物路径:
-        .memory/rounds/round_NNN/profile_routing/profile_execution_plan.json
-        """
+        """Implementation details."""
         if not self._enabled or not plan:
             return
         try:
@@ -747,11 +666,7 @@ class ArtifactDumper:
         task_index: int | None = None,
         report: dict[str, Any] | None = None,
     ) -> None:
-        """转储 persona realization report。
-
-        产物路径:
-        .memory/rounds/round_NNN/profile_routing/profile_realization_report.json
-        """
+        """Implementation details."""
         if not self._enabled or not report:
             return
         try:
@@ -780,11 +695,11 @@ class ArtifactDumper:
         except Exception as e:
             logger.warning("ArtifactDumper: failed to dump profile_realization_report: %s", e)
 
-    # ── 记忆注入产物（替代旧的 _save_memory_injection） ──
 
-    # dump_memory_injection 已删除，由 dump_injection_trace 替代
 
-    # ── AgentRound 产物（合并自 RoundArtifactWriter） ──
+
+
+
 
     def dump_agent_round(
         self,
@@ -793,15 +708,7 @@ class ArtifactDumper:
         agent_round: Any = None,
         raw_tool_calls: list[dict] | None = None,
     ) -> None:
-        """转储 AgentRound 完整数据（合并自 RoundArtifactWriter）。
-
-        将原 round_XXX/ 目录的产物统一写入 round_XXX/ 目录：
-        - agent_round.json
-        - raw_tool_calls.json
-        - compressed_segments.json
-        - memory_injection.txt
-        - agent_reasoning.txt
-        """
+        """Implementation details."""
         if not self._enabled or agent_round is None:
             return
         round_index = self._resolve_round_index(round_index)
@@ -877,7 +784,7 @@ class ArtifactDumper:
             }
             self._write_json(round_dir / "compressed_segments.json", compressed_data)
 
-            # 4. memory_injection.txt (文本格式保留，便于阅读)
+
             if memory_injection_full:
                 tokens = getattr(agent_round, 'memory_injection_tokens', 0)
                 text = f"""=== Memory Context Injected at Round {round_index} ===
@@ -916,7 +823,7 @@ Timestamp: {datetime.now().isoformat()}
         level: str = "system",
         agent_role: str = "",
         turn: int = 0,
-        # ── 4 个独立组件（完整内容，不截断） ──
+
         wm_preferences: str = "",
         profile_execution_contract: str = "",
         profile_execution_plan: str = "",
@@ -924,46 +831,16 @@ Timestamp: {datetime.now().isoformat()}
         ltm_tool_experiences: str = "",
         wm_round_history: str = "",
         wm_task_history: str = "",
-        # ── 最终注入 ──
+
         final_injected_text: str = "",
         injection_target: str = "SYSTEM",
         skipped_reason: str = "",
         template_prompt: str = "",
-        # ── Operation 级别额外字段 ──
+
         op_index: int = 0,
         trigger_tools: list | None = None,
     ) -> None:
-        """统一转储记忆注入 trace（完整记录所有组件）。
-
-        6 个组件（AtomicPreference 不注入，仅用于更新 UserProfile）：
-        - wm_preferences:       WM 临时偏好（ProfileInjectionRouter 注入的画像 + 当前 Job 偏好）
-        - profile_execution_contract: 仅 Design 阶段注入的页级画像执行合同
-        - profile_execution_plan: 仅 Design 阶段注入的逐页 persona 执行计划
-        - wm_experiences:       WM 临时经验（remember_lesson 写入）
-        - ltm_tool_experiences: LTM 工具链经验（仅 Operation 级别）
-        - wm_round_history:      WM 任务历史摘要（RoundSummary via JobHistory）
-
-        每个组件独立记录完整内容 + 字符数 + token 估算，
-        便于追溯哪些记忆被注入、哪些为空。
-
-        Args:
-            round_index: Round 索引
-            level: "system" (SYSTEM prompt 注入) 或 "operation"
-            agent_role: Agent 角色 (research/design/modify/template_analysis)
-            turn: 修改轮次（Modify 多轮场景）
-            wm_preferences: WM 临时偏好（ProfileInjectionRouter 注入的画像 + 当前 Job 偏好）
-            profile_execution_contract: 仅 Design 阶段注入的页级画像执行合同
-            profile_execution_plan: 仅 Design 阶段注入的逐页 persona 执行计划
-            wm_experiences: WM 临时经验（remember_lesson 写入）
-            ltm_tool_experiences: LTM 工具链经验（仅 Operation 级别）
-            wm_round_history: WM 任务历史摘要（RoundSummary via JobHistory）
-            final_injected_text: 最终注入的完整文本
-            injection_target: 注入位置 ("SYSTEM" 或 "USER <memory_hint>")
-            skipped_reason: 跳过注入的原因
-            template_prompt: 模板附加注入（Research/Design 的 template prompt）
-            op_index: Operation 索引（仅 level="operation" 时使用）
-            trigger_tools: 触发工具列表（仅 level="operation" 时使用）
-        """
+        """Implementation details."""
         if not self._enabled:
             return
         if wm_task_history and not wm_round_history:
@@ -1019,7 +896,7 @@ Timestamp: {datetime.now().isoformat()}
                 "skipped_reason": skipped_reason,
             }
 
-            # Operation 级别额外字段
+
             if level == "operation":
                 data["op_index"] = op_index
                 data["trigger_tools"] = trigger_tools or []

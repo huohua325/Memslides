@@ -1,4 +1,4 @@
-"""WM 纯内存组件"""
+"""Implementation details."""
 
 from .tool_chain_buffer import ToolChainBuffer
 from .job_history import JobHistory

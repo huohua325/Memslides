@@ -1,12 +1,4 @@
-"""
-TemplateGuideBuilder — Guide 驱动的模板 Prompt 构建器 (Stage 7)
-
-替代 TemplatePromptBuilder，实现：
-- 按阶段注入（Research / Design 各自获取所需子集）
-- 按需查询（布局详情通过 MCP Tool 按页获取，不在启动时全量注入）
-- Guide 驱动（6 个 Guide 文档提供结构化指导）
-- 降级友好（Guide 缺失时仍可工作）
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -56,14 +48,14 @@ PACKAGE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_GUIDES_DIR = PACKAGE_DIR / "template_guides"
 DEFAULT_PROMPTS_DIR = DEFAULT_GUIDES_DIR / "prompts"
 
-# Guide 文档与阶段的映射
+
 RESEARCH_GUIDES = ["00_field_map", "01_content_planning"]
 DESIGN_GUIDES = ["00_field_map", "02_layout_selection", "04_visual_constraints", "05_image_handling"]
 PER_PAGE_GUIDES = ["03_element_filling"]
 
 
 class TemplateGuideBuilder:
-    """Guide 驱动的模板 Prompt 构建器"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -79,38 +71,35 @@ class TemplateGuideBuilder:
         self._last_queried_layout: str = ""
         self._workspace: Path | None = Path(workspace) if workspace else None
 
-        # Jinja2 环境初始化
+
         self._jinja_env = Environment(
             loader=FileSystemLoader(str(self.prompts_dir)),
             trim_blocks=True,
             lstrip_blocks=True,
         )
 
-        # 注入记录系统
+
         self._injection_log: dict[str, Any] = {
             "template_name": template_profile.name if template_profile else "unknown",
             "created_at": datetime.now().isoformat(),
             "guides": {},
             "injections": [],
-            "mcp_queries": [],       # MCP Tool 查询记录
-            "compliance_feedbacks": [],  # 合规检查反馈记录
+            "mcp_queries": [],
+            "compliance_feedbacks": [],
         }
         self._modify_count: int = 0
 
     # ══════════════════════════════════════════════
-    # 阶段注入方法（Jinja2 模板驱动）
+
     # ══════════════════════════════════════════════
 
     def build_for_research(self) -> str:
-        """构建 Research Agent 注入 Prompt (~1,000 tokens)
-
-        使用 Jinja2 模板驱动，数据从 TemplateProfile 提取
-        """
+        """Implementation details."""
         context = self._build_research_context()
         result = self._render_template("research_prompt.md.j2", context)
         self._token_stats["research_prompt"] = self._estimate_tokens(result)
 
-        # 缓存并记录注入
+
         self._cache_prompt("research", result)
         self._record_injection("research", result, {
             "guides_used": ["00_field_map", "01_content_planning"],
@@ -119,14 +108,11 @@ class TemplateGuideBuilder:
         return result
 
     def build_for_design(self) -> str:
-        """构建 DeckDesigner 注入 Prompt (~2,100 tokens)
-
-        使用 Jinja2 模板驱动，数据从 TemplateProfile 提取
-        """
+        """Implementation details."""
         context = self._build_design_context()
         result = self._render_template("design_prompt.md.j2", context)
 
-        # Task 10 (F1): 低置信度警告
+
         quality_score = self.skill.confidence if self.skill else 0.8
         if 0.3 <= quality_score < 0.6:
             result += (
@@ -136,7 +122,7 @@ class TemplateGuideBuilder:
 
         self._token_stats["design_prompt"] = self._estimate_tokens(result)
 
-        # 缓存并记录注入
+
         self._cache_prompt("design", result)
         self._record_injection("design", result, {
             "guides_used": ["00_field_map", "02_layout_selection", "04_visual_constraints", "05_image_handling"],
@@ -145,18 +131,12 @@ class TemplateGuideBuilder:
         return result
 
     def build_for_modify(self, current_page_layout: str = "") -> str:
-        """构建 RevisionEditor 注入 Prompt (~800 tokens)
-
-        使用 Jinja2 模板驱动，比 build_for_design() 更精简
-
-        Args:
-            current_page_layout: 当前被修改页面的布局名称（可选）
-        """
+        """Implementation details."""
         context = self._build_modify_context(current_page_layout=current_page_layout)
         result = self._render_template("modify_prompt.md.j2", context)
         self._token_stats["modify_prompt"] = self._estimate_tokens(result)
 
-        # 缓存并记录注入
+
         self._modify_count += 1
         stage_name = f"modify_{self._modify_count:02d}"
         self._cache_prompt(stage_name, result)
@@ -167,45 +147,28 @@ class TemplateGuideBuilder:
         return result
 
     # ══════════════════════════════════════════════
-    # 确定性 design_plan.md 生成（委托给 DesignPlanGenerator）
+
     # ══════════════════════════════════════════════
 
     def generate_design_plan(self, output_path: Path, mode: str = "structural_template") -> Path:
-        """从 TemplateProfile 确定性生成 design_plan.md（委托给 DesignPlanGenerator）
-
-        Args:
-            output_path: 输出文件路径 (e.g., workspace / "design_plan.md")
-            mode: structural_template uses strict layout guidance; style_reference
-                keeps only visual inspiration and lets manuscript content drive layout.
-
-        Returns:
-            写入的文件路径
-        """
+        """Implementation details."""
         from .design_plan_generator import DesignPlanGenerator
 
         generator = DesignPlanGenerator(self.skill, mode=mode)
         result = generator.generate(output_path)
 
-        # 记录注入
+
         content = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
         self._record_injection("design_plan", content, {"generator": "DesignPlanGenerator"})
 
         return result
 
     # ══════════════════════════════════════════════
-    # Jinja2 模板渲染辅助方法
+
     # ══════════════════════════════════════════════
 
     def _render_template(self, template_name: str, context: dict[str, Any]) -> str:
-        """渲染 Jinja2 模板
-
-        Args:
-            template_name: 模板文件名 (e.g., "research_prompt.md.j2")
-            context: 模板变量字典
-
-        Returns:
-            渲染后的字符串
-        """
+        """Implementation details."""
         try:
             template = self._jinja_env.get_template(template_name)
             return template.render(**context)
@@ -217,12 +180,12 @@ class TemplateGuideBuilder:
             return ""
 
     def _build_research_context(self) -> dict[str, Any]:
-        """构建 Research Agent 模板上下文"""
+        """Implementation details."""
         cp = self.skill.content_patterns or ContentPatterns()
         si = self.skill.slide_induction or {}
         functional_keys = si.get("functional_keys", [])
 
-        # 信息密度映射
+
         density_map = {
             "low": ("精简风格", "每页 2-3 个要点，大量留白"),
             "medium": ("平衡风格", "每页 4-5 个要点，图文混排"),
@@ -231,7 +194,7 @@ class TemplateGuideBuilder:
         current_density = cp.info_density or "medium"
         density_name, density_desc = density_map.get(current_density, (current_density, ""))
 
-        # 叙事风格映射
+
         style_map = {
             "academic": ("学术风格", "引用严谨、术语专业、逻辑递进"),
             "business": ("商务风格", "数据驱动、简洁直接、先结论后论据"),
@@ -243,7 +206,7 @@ class TemplateGuideBuilder:
         if cp.narrative_style:
             style_name, style_desc = style_map.get(cp.narrative_style, (cp.narrative_style, ""))
 
-        # 章节结构
+
         section_names = {
             "opening": "封面/开场", "table_of_contents": "目录页",
             "section_divider": "章节分隔页", "content": "内容页",
@@ -254,13 +217,13 @@ class TemplateGuideBuilder:
             named = [f"`{s}` ({section_names.get(s, s)})" for s in cp.typical_sections]
             typical_sections_display = " → ".join(named)
 
-        # 列表风格
+
         bullet_style_display = ""
         if cp.bullet_style:
             bullet_desc = {"bulleted": "圆点列表", "numbered": "数字编号", "icon": "图标列表"}
             bullet_style_display = bullet_desc.get(cp.bullet_style, cp.bullet_style)
 
-        # 功能页布局
+
         fk_names = {
             "opening": "封面", "table of contents": "目录",
             "ending": "结尾/致谢", "section_divider": "章节分隔",
@@ -277,7 +240,7 @@ class TemplateGuideBuilder:
                     "image_count": sum(1 for e in elements if e.get("type") == "image"),
                 })
 
-        # 内容页布局
+
         content_layout_keys = [
             k for k in si.keys()
             if k not in ("functional_keys", "language", "layout_capabilities") and isinstance(si[k], dict)
@@ -287,7 +250,7 @@ class TemplateGuideBuilder:
         for layout_name in content_layout_keys:
             layout_data = si[layout_name]
             elements = layout_data.get("elements", [])
-            # 截断长名称但保留后缀
+
             if len(layout_name) > 70:
                 suffix = ""
                 if ":image" in layout_name:
@@ -305,7 +268,7 @@ class TemplateGuideBuilder:
                 "image_count": sum(1 for e in elements if e.get("type") == "image"),
             })
 
-        # 任务说明
+
         task_section = ""
         guide_00 = self._load_guide("00_field_map")
         if guide_00:
@@ -315,12 +278,12 @@ class TemplateGuideBuilder:
                 if research_part:
                     task_section = research_part.strip()
 
-        # Task 14 (D1): 图片需求汇总 + 内容容量估算
+
         total_image_demand = 0
         total_text_capacity = 0
         for layout in content_layouts:
             total_image_demand += layout["image_count"]
-            # 计算文本容量：各 text element 的 max(len(data)) 之和
+
             layout_name_key = layout["name"]
             ld = si.get(layout_name_key, {})
             for el in ld.get("elements", []):
@@ -359,7 +322,7 @@ class TemplateGuideBuilder:
         }
 
     def _build_design_context(self) -> dict[str, Any]:
-        """构建 DeckDesigner 模板上下文"""
+        """Implementation details."""
         dc = self.skill.design_constraints or DesignConstraints()
         raw_cp = dc.color_palette or ColorPalette()
         tp = dc.typography or Typography()
@@ -378,7 +341,7 @@ class TemplateGuideBuilder:
             state_mode = assess_template_quality(self.skill).mode
         cp = effective_template_palette(self.skill, mode=state_mode)
 
-        # 布局选择规则
+
         layout_rules = ""
         guide_02 = self._load_guide("02_layout_selection")
         if guide_02:
@@ -386,7 +349,7 @@ class TemplateGuideBuilder:
             if rules:
                 layout_rules = rules.strip()
 
-        # 图片处理规则
+
         image_rules = ""
         guide_05 = self._load_guide("05_image_handling")
         if guide_05:
@@ -394,7 +357,7 @@ class TemplateGuideBuilder:
             if img_rules:
                 image_rules = img_rules.strip()
 
-        # 辅助色格式化
+
         additional = getattr(cp, 'additional', None) or []
         color_additional = ", ".join(f"`{c}`" for c in additional[:4]) if additional else ""
         adaptive_surface_note = ""
@@ -439,18 +402,18 @@ class TemplateGuideBuilder:
             "spacing_gap": spacing.get("element_gap"),
             "image_rules": image_rules,
             "decorative_images": self.get_image_summary(),
-            # 图表风格约束
+
             "chart_default_type": cs.default_type if cs else "",
             "chart_color_scheme": ", ".join(f"`{c}`" for c in (cs.color_scheme or [])[:6]) if cs else "",
         }
 
     def _build_modify_context(self, current_page_layout: str = "") -> dict[str, Any]:
-        """构建 RevisionEditor 模板上下文"""
+        """Implementation details."""
         dc = self.skill.design_constraints or DesignConstraints()
         cp = dc.color_palette or ColorPalette()
         tp = dc.typography or Typography()
 
-        # 当前页面布局详情
+
         current_layout_detail = ""
         if current_page_layout:
             current_layout_detail = self.get_layout_detail(current_page_layout)
@@ -476,11 +439,11 @@ class TemplateGuideBuilder:
         }
 
     # ══════════════════════════════════════════════
-    # MCP Tool 支撑方法
+
     # ══════════════════════════════════════════════
 
     def get_layout_detail(self, layout_name: str) -> str:
-        """获取布局详情 (~600 tokens/页)，供 query_slide_layout MCP Tool 使用"""
+        """Implementation details."""
         layout = resolve_canonical_layout(self.skill, layout_name)
         if layout is None:
             available = self._get_available_layout_names()
@@ -491,7 +454,7 @@ class TemplateGuideBuilder:
 
         self._last_queried_layout = layout.name
 
-        # 记录 MCP 查询
+
         self._record_mcp_query("query_slide_layout", layout.name)
 
         sections: list[str] = []
@@ -551,7 +514,7 @@ class TemplateGuideBuilder:
                 sections.append(f"- `{slot.name}` ({slot.role or slot.type}): {sample[:80]}")
             sections.append("")
 
-        # 元素填充指南（从 Guide 03 的「字符限制规则」和「元素数量规则」）
+
         guide_03 = self._load_guide("03_element_filling")
         if guide_03:
             char_rules = self._extract_section(guide_03, "字符限制规则")
@@ -560,7 +523,7 @@ class TemplateGuideBuilder:
                 sections.append(char_rules.strip())
                 sections.append("")
 
-        # 元素数量规则
+
         state_mode = ""
         try:
             from memslides.templates.runtime_state import load_template_runtime_state
@@ -588,11 +551,8 @@ class TemplateGuideBuilder:
         return result
 
     def get_layout_geometry(self, layout_name: str) -> str:
-        """获取布局几何信息 (~200 tokens)，供 query_layout_geometry MCP Tool 使用
+        """Implementation details."""
 
-        优先从 shape_geometry.json 读取精确坐标，无文件时返回提示。
-        """
-        # 记录 MCP 查询
         self._record_mcp_query("query_layout_geometry", layout_name)
         layout = resolve_canonical_layout(self.skill, layout_name)
         if layout is None:
@@ -612,7 +572,7 @@ class TemplateGuideBuilder:
         return "\n".join(sections)
 
     def get_image_summary(self) -> str:
-        """获取装饰图片摘要，供 query_image_info MCP Tool 使用"""
+        """Implementation details."""
         image_stats = self.skill.image_stats or {}
         if not image_stats:
             return ""
@@ -624,7 +584,7 @@ class TemplateGuideBuilder:
             appear = stats.get("appear_times", 1)
             area = stats.get("relative_area", 0)
 
-            # 装饰图判断：多次出现+小面积，或多次出现+大面积
+
             if (appear >= 3 and area < 5) or (appear >= 2 and area > 20):
                 short_name = img_name[:16] + "..." if len(img_name) > 16 else img_name
                 decorative.append(f"- `{short_name}` (出现{appear}次, 面积{area:.1f}%)")
@@ -648,11 +608,11 @@ class TemplateGuideBuilder:
         )
 
     # ══════════════════════════════════════════════
-    # 辅助方法
+
     # ══════════════════════════════════════════════
 
     def get_layout_summary_table(self) -> str:
-        """生成布局摘要表格"""
+        """Implementation details."""
         layouts = canonical_layout_views(self.skill)
         if not layouts:
             return ""
@@ -671,14 +631,7 @@ class TemplateGuideBuilder:
         return "\n".join(rows)
 
     def detect_conflicts(self, user_instruction: str) -> list[dict]:
-        """检测模板约束与用户指令的潜在冲突
-
-        Args:
-            user_instruction: 用户指令
-
-        Returns:
-            冲突列表，每项包含 {type, template_value, user_hint}
-        """
+        """Implementation details."""
         conflicts: list[dict] = []
         skill = self.skill
 
@@ -687,7 +640,7 @@ class TemplateGuideBuilder:
 
         instruction_lower = user_instruction.lower()
 
-        # ── 颜色冲突 ──
+
         color_keywords = {
             "蓝色": "blue", "blue": "blue",
             "红色": "red", "red": "red",
@@ -719,7 +672,7 @@ class TemplateGuideBuilder:
                         })
                         break
 
-        # ── 布局冲突 ──
+
         layout_keywords = {
             "单栏": "single_column", "双栏": "two_column",
             "三栏": "three_column", "全图": "full_image",
@@ -727,7 +680,7 @@ class TemplateGuideBuilder:
             "full image": "full_image",
         }
 
-        # 从 slide_induction 提取可用布局
+
         si = skill.slide_induction or {}
         available_layouts = set()
         for key in si.keys():
@@ -737,7 +690,7 @@ class TemplateGuideBuilder:
         if available_layouts:
             for keyword, layout in layout_keywords.items():
                 if keyword in instruction_lower:
-                    # 检查是否有匹配的布局
+
                     has_layout = any(
                         layout in layout_name.lower()
                         for layout_name in available_layouts
@@ -750,7 +703,7 @@ class TemplateGuideBuilder:
                         })
                         break
 
-        # ── 风格冲突 ──
+
         style_keywords = {
             "简约": "minimal", "极简": "minimal",
             "复杂": "complex", "华丽": "ornate",
@@ -775,7 +728,7 @@ class TemplateGuideBuilder:
                         })
                         break
 
-        # ── 宽高比冲突 ──
+
         aspect_keywords = {
             "4:3": "4:3", "4：3": "4:3",
             "16:9": "16:9", "16：9": "16:9",
@@ -801,7 +754,7 @@ class TemplateGuideBuilder:
                         })
                         break
 
-        # ── 页数冲突 ──
+
         si = skill.slide_induction or {}
         content_layout_count = sum(
             1 for k, v in si.items()
@@ -822,10 +775,10 @@ class TemplateGuideBuilder:
                         ),
                     })
 
-        # ── 语言冲突 ──
+
         template_lang = si.get("language", {}).get("lid", "")
         if template_lang:
-            # 简单判断：中文字符占比
+
             cn_chars = sum(1 for c in user_instruction if '\u4e00' <= c <= '\u9fff')
             cn_ratio = cn_chars / max(len(user_instruction), 1)
             if template_lang == "en" and cn_ratio > 0.3:
@@ -844,14 +797,7 @@ class TemplateGuideBuilder:
         return conflicts
 
     def format_conflicts_for_prompt(self, conflicts: list[dict]) -> str:
-        """格式化冲突信息用于 prompt 注入
-
-        Args:
-            conflicts: 冲突列表
-
-        Returns:
-            格式化的冲突描述
-        """
+        """Implementation details."""
         if not conflicts:
             return ""
 
@@ -879,7 +825,7 @@ class TemplateGuideBuilder:
         return "\n".join(lines)
 
     def get_last_queried_layout(self) -> str:
-        """获取最后一次 get_layout_detail 查询的布局名称"""
+        """Implementation details."""
         return self._last_queried_layout
 
     def build_layout_mapping(
@@ -897,11 +843,11 @@ class TemplateGuideBuilder:
         )
 
     # ══════════════════════════════════════════════
-    # 内部方法
+
     # ══════════════════════════════════════════════
 
     def _load_guide(self, guide_id: str) -> str:
-        """加载 Guide 文档，缓存结果，移除 YAML frontmatter"""
+        """Implementation details."""
         if guide_id in self._guides_cache:
             return self._guides_cache[guide_id]
 
@@ -913,7 +859,7 @@ class TemplateGuideBuilder:
             return ""
 
         content = guide_path.read_text(encoding="utf-8")
-        # 移除 YAML frontmatter
+
         if content.startswith("---"):
             parts = content.split("---", 2)
             if len(parts) >= 3:
@@ -925,54 +871,31 @@ class TemplateGuideBuilder:
 
     @staticmethod
     def parse_layout_mapping(manuscript_content: str) -> list[dict[str, Any]]:
-        """从 manuscript 末尾解析 LAYOUT_MAPPING
+        """Implementation details."""
 
-        Args:
-            manuscript_content: manuscript 文件内容
-
-        Returns:
-            布局映射列表，每个元素包含 page, title, layout 字段
-            如果解析失败返回空列表
-
-        Example:
-            >>> content = '''
-            ... # Slide Content
-            ... ...
-            ... ```yaml
-            ... # === LAYOUT_MAPPING ===
-            ... slides:
-            ...   - page: 1
-            ...     title: "Title"
-            ...     layout: "opening"
-            ... ```
-            ... '''
-            >>> TemplateGuideBuilder.parse_layout_mapping(content)
-            [{'page': 1, 'title': 'Title', 'layout': 'opening'}]
-        """
-        # 查找 LAYOUT_MAPPING 分隔符
         marker = "# === LAYOUT_MAPPING ==="
         if marker not in manuscript_content:
             return []
 
-        # 提取 YAML 内容
-        # 支持两种格式：
-        # 1. ```yaml\n# === LAYOUT_MAPPING ===\n...\n``` 代码块
-        # 2. 直接的 # === LAYOUT_MAPPING ===\n... YAML 内容
 
-        # 首先尝试在代码块内查找
+
+
+
+
+
         code_block_pattern = r'```ya?ml\s*\n(.*?)```'
         for match in re.finditer(code_block_pattern, manuscript_content, re.DOTALL):
             block_content = match.group(1)
             if marker in block_content:
-                # 提取 marker 之后的 YAML 内容
+
                 idx = block_content.find(marker)
                 yaml_content = block_content[idx + len(marker):].strip()
                 break
         else:
-            # 没有在代码块中找到，直接提取
+
             idx = manuscript_content.find(marker)
             after_marker = manuscript_content[idx + len(marker):]
-            # 截取到下一个代码块结束符或文件末尾
+
             end_match = re.search(r'\n```', after_marker)
             if end_match:
                 yaml_content = after_marker[:end_match.start()].strip()
@@ -989,15 +912,7 @@ class TemplateGuideBuilder:
             return []
 
     def get_layout_for_page(self, manuscript_content: str, page_number: int) -> str | None:
-        """根据 manuscript 获取指定页的布局名称
-
-        Args:
-            manuscript_content: manuscript 文件内容
-            page_number: 页码（1-indexed）
-
-        Returns:
-            布局名称，如果未找到返回 None
-        """
+        """Implementation details."""
         mapping = self.parse_layout_mapping(manuscript_content)
         for item in mapping:
             if item.get("page") == page_number:
@@ -1005,7 +920,7 @@ class TemplateGuideBuilder:
         return None
 
     def _extract_section(self, content: str, section_title: str) -> str:
-        """从 Markdown 内容中提取指定标题的 section"""
+        """Implementation details."""
         lines = content.split("\n")
         result_lines: list[str] = []
         in_section = False
@@ -1030,20 +945,20 @@ class TemplateGuideBuilder:
         return "\n".join(result_lines).strip()
 
     def _get_available_layout_names(self) -> list[str]:
-        """获取所有可用布局名称"""
+        """Implementation details."""
         return [layout.name for layout in canonical_layout_views(self.skill)]
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """粗估 token 数（中英混合约 0.5-0.7 token/char）"""
+        """Implementation details."""
         return int(len(text) * 0.6)
 
     # ══════════════════════════════════════════════
-    # 注入记录系统
+
     # ══════════════════════════════════════════════
 
     def _record_injection(self, stage: str, prompt: str, metadata: dict[str, Any]) -> None:
-        """记录一次注入（内存 + JSONL 增量写入）"""
+        """Implementation details."""
         entry = {
             "stage": stage,
             "timestamp": datetime.now().isoformat(),
@@ -1056,7 +971,7 @@ class TemplateGuideBuilder:
         self._append_jsonl({"type": "injection", **entry})
 
     def _record_guide_load(self, guide_id: str, content: str, success: bool) -> None:
-        """记录 guide 加载状态"""
+        """Implementation details."""
         self._injection_log["guides"][guide_id] = {
             "loaded": success,
             "char_count": len(content) if success else 0,
@@ -1064,7 +979,7 @@ class TemplateGuideBuilder:
         }
 
     def _record_mcp_query(self, tool_name: str, layout_name: str) -> None:
-        """记录 MCP Tool 查询（内存 + JSONL 增量写入）"""
+        """Implementation details."""
         entry = {
             "tool": tool_name,
             "layout": layout_name,
@@ -1074,7 +989,7 @@ class TemplateGuideBuilder:
         self._append_jsonl({"type": "mcp_query", **entry})
 
     def _append_jsonl(self, record: dict[str, Any]) -> None:
-        """Task 11 (F2): 增量 append 一行 JSON 到 workspace/.history/injection_events.jsonl"""
+        """Implementation details."""
         if not self._workspace:
             return
         try:
@@ -1087,31 +1002,22 @@ class TemplateGuideBuilder:
             pass  # non-fatal
 
     def record_compliance_feedback(self, slide_file: str, issues_count: int, feedback: str) -> None:
-        """记录合规检查反馈（供 task.py inspect_slide 调用）"""
+        """Implementation details."""
         self._injection_log["compliance_feedbacks"].append({
             "slide": slide_file,
             "issues_count": issues_count,
             "feedback_chars": len(feedback),
             "timestamp": datetime.now().isoformat(),
         })
-        # 缓存反馈内容用于保存
+
         self._cache_prompt(f"compliance_{len(self._injection_log['compliance_feedbacks']):02d}", feedback)
 
     def save_injection_logs(self, output_dir: Path) -> Path:
-        """保存注入日志到指定目录
-
-        Task 11 (F2): 优先从 JSONL 文件汇总，fallback 到内存 dict。
-
-        Args:
-            output_dir: 输出目录 (e.g., workspace/.history)
-
-        Returns:
-            保存的目录路径
-        """
+        """Implementation details."""
         log_dir = Path(output_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Task 11: 尝试从 JSONL 汇总补充内存 dict
+
         jsonl_path = log_dir / "injection_events.jsonl"
         if jsonl_path.exists():
             try:
@@ -1127,7 +1033,7 @@ class TemplateGuideBuilder:
                         jsonl_injections.append(record)
                     elif rtype == "mcp_query":
                         jsonl_mcp.append(record)
-                # 如果 JSONL 有更多记录（进程 crash 后恢复），用 JSONL 数据
+
                 if len(jsonl_injections) > len(self._injection_log["injections"]):
                     self._injection_log["injections"] = jsonl_injections
                 if len(jsonl_mcp) > len(self._injection_log["mcp_queries"]):
@@ -1135,14 +1041,14 @@ class TemplateGuideBuilder:
             except Exception:
                 pass  # fallback to in-memory dict
 
-        # 1. 保存摘要 JSON
+
         summary_file = log_dir / "injection_summary.json"
         summary_file.write_text(
             json.dumps(self._injection_log, ensure_ascii=False, indent=2),
             encoding="utf-8"
         )
 
-        # 2. 保存各阶段的 prompt 文件
+
         for inj in self._injection_log["injections"]:
             stage = inj["stage"]
             prompt_content = self._get_cached_prompt(stage)
@@ -1162,7 +1068,7 @@ Sections Included: {', '.join(inj.get('sections_included', []))}
 """
                 prompt_file.write_text(header + prompt_content, encoding="utf-8")
 
-        # 3. 保存 MCP 查询日志
+
         if self._injection_log["mcp_queries"]:
             mcp_file = log_dir / "mcp_queries.json"
             mcp_file.write_text(
@@ -1170,7 +1076,7 @@ Sections Included: {', '.join(inj.get('sections_included', []))}
                 encoding="utf-8"
             )
 
-        # 4. 保存合规检查反馈
+
         for fb in self._injection_log["compliance_feedbacks"]:
             idx = self._injection_log["compliance_feedbacks"].index(fb) + 1
             feedback_content = self._get_cached_prompt(f"compliance_{idx:02d}")
@@ -1186,7 +1092,7 @@ Timestamp: {fb['timestamp']}
 """
                 fb_file.write_text(header + feedback_content, encoding="utf-8")
 
-        # 5. 保存 guide 加载详情
+
         guides_file = log_dir / "guide_loads.json"
         guides_file.write_text(
             json.dumps(self._injection_log["guides"], ensure_ascii=False, indent=2),
@@ -1197,13 +1103,13 @@ Timestamp: {fb['timestamp']}
         return log_dir
 
     def _cache_prompt(self, stage: str, prompt: str) -> None:
-        """缓存 prompt 内容"""
+        """Implementation details."""
         if not hasattr(self, "_prompt_cache"):
             self._prompt_cache: dict[str, str] = {}
         self._prompt_cache[stage] = prompt
 
     def _get_cached_prompt(self, stage: str) -> str:
-        """获取缓存的 prompt"""
+        """Implementation details."""
         if not hasattr(self, "_prompt_cache"):
             self._prompt_cache: dict[str, str] = {}
         return self._prompt_cache.get(stage, "")

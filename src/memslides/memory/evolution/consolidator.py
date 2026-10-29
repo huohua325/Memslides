@@ -1,10 +1,4 @@
-"""Consolidator — Job 结束归档（Design Doc §5.7）
-
-将 WM 中的有价值内容归档到 LTM：
-- 工具经验 → Tool Memory LTM (ExperienceTrace)
-- 偏好 → Preference Memory LTM (AtomicPreference + UserProfile)
-- Episode → EpisodeStore
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -38,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class Consolidator:
-    """Job 结束时将 WM 中的有价值内容归档到 LTM。"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -71,7 +65,7 @@ class Consolidator:
         self._enable_atomic_preference_writeback = enable_atomic_preference_writeback
         self._enable_profile_writeback = enable_profile_writeback
         self._enable_chain_experience_writeback = enable_chain_experience_writeback
-        # 惰性初始化 DimensionMatcher
+
         self._dim_matcher = None
 
     async def consolidate(
@@ -80,15 +74,7 @@ class Consolidator:
         freeze_preference_writeback: bool = False,
         progress_callback: Any = None,
     ) -> dict:
-        """归档 WM 到 LTM。返回 stats dict。
-
-        Args:
-            job: 当前 Job 对象（包含所有 Task 及用户消息）。
-            working_memory: 当前 Job 的 WorkingMemory。
-            slide_html_dir: 最终 PPT 的 HTML 文件目录路径。
-                           指纹+多模态分析仅在此处对最终 HTML 一次性执行。
-            freeze_preference_writeback: 是否冻结偏好写回，仅保留非偏好归档。
-        """
+        """Implementation details."""
         from ..progress import emit_memory_save_progress
 
         stats = {"tool_written": 0, "pref_written": 0, "episode_written": 0, "deduplicated": 0}
@@ -97,7 +83,7 @@ class Consolidator:
         total_chain_groups = len(new_chains_preview)
         total_chain_segments = sum(len(segments) for segments in new_chains_preview.values())
 
-        # 1. 偏好归档优先：用户画像比工具链蒸馏更直接影响下一轮个性化。
+
         # Orchestrator may already have written it before slower round/tool
         # writeback; in that case freeze_preference_writeback avoids duplicates.
         if freeze_preference_writeback:
@@ -117,7 +103,7 @@ class Consolidator:
                 progress_end=30,
             )
 
-        # 2. 工具链增量合并归档 → ChainStore (新逻辑: 逐 segment 独立蒸馏 + 等价判定)
+
         if not self._enable_chain_experience_writeback:
             logger.info(
                 "Consolidator: chain experience writeback disabled, "
@@ -159,21 +145,21 @@ class Consolidator:
                         completed_chain_groups=completed_chain_groups,
                         total_chain_groups=total_chain_groups,
                     )
-                    # 从 LTM 取已有提炼经验
+
                     existing_exps = await self._chain_store.get_experience(sig)
                     experiences_before = len(existing_exps)
                     new_experiences_list: list = []
                     if self._llm and segments:
                         from ..extract.chain_experience_extractor import ChainExperienceExtractor
                         extractor = ChainExperienceExtractor(llm=self._llm)
-                        # 逐个 ChainSegment 独立蒸馏 + 等价判定 + 合并/追加
+
                         for segment in segments:
                             try:
                                 updated_exps = await extractor.distill_and_merge(
                                     sig, segment, existing_exps,
                                 )
                                 for exp in updated_exps:
-                                    # 生成 keyword_embedding
+
                                     if self._embedding_func and exp.keywords:
                                         try:
                                             kw_text = " ".join(exp.keywords)
@@ -188,16 +174,16 @@ class Consolidator:
                                     )
                                     stats["tool_written"] += 1
                                     new_experiences_list.append(exp)
-                                # 更新 existing_exps 供下一个 segment 参考
+
                                 existing_exps = await self._chain_store.get_experience(sig)
                             except Exception as seg_e:
                                 logger.warning(f"Segment distill failed for {sig}: {seg_e}")
                                 continue
-                    # 追加原始链数据
+
                     await self._chain_store.save_raw_chains(
                         sig, segments, job.user_id, job.id,
                     )
-                    # ArtifactDumper: 工具链合并产物
+
                     if self._artifact_dumper:
                         try:
                             final_exps = await self._chain_store.get_experience(sig)
@@ -228,7 +214,7 @@ class Consolidator:
                 total_chain_groups=total_chain_groups,
             )
 
-        # 1-legacy. 旧路径：已提取的 ChainExperience → ExperienceTrace LTM
+
         elif self._exp_writer:
             await emit_memory_save_progress(
                 progress_callback,
@@ -253,7 +239,7 @@ class Consolidator:
                     except Exception as e:
                         logger.warning(f"Remaining chain archival failed for {chain_name}: {e}")
 
-        # 3. Episode 归档
+
         if self._episode_store:
             episodes = working_memory.get_episodes()
             await emit_memory_save_progress(
@@ -277,7 +263,7 @@ class Consolidator:
             episode_written=stats["episode_written"],
         )
 
-        # 4. 去重合并
+
         if self._offline:
             try:
                 await emit_memory_save_progress(
@@ -298,7 +284,7 @@ class Consolidator:
             deduplicated=stats["deduplicated"],
         )
 
-        # 5. ArtifactDumper — 转储 Job 级归档产物
+
         if self._artifact_dumper:
             try:
                 await emit_memory_save_progress(
@@ -307,14 +293,14 @@ class Consolidator:
                     progress=96,
                     message="Writing consolidation trace artifacts.",
                 )
-                # Episode 归档产物
+
                 episodes_data = []
                 for ep in working_memory.get_episodes():
                     if hasattr(ep, "to_dict"):
                         episodes_data.append(ep.to_dict())
                 self._artifact_dumper.dump_episode_archive(episodes=episodes_data)
 
-                # 归档汇总
+
                 round_count = len(getattr(job, "rounds", []))
                 self._artifact_dumper.dump_consolidation_summary(
                     job_id=job.id,
@@ -384,24 +370,24 @@ class Consolidator:
     async def _write_chain_experience(
         self, chain_name: str, exp: ChainExperience, session_id: str,
     ) -> Any:
-        """将 ChainExperience 写入 Tool Memory LTM（Stage 12: 无损转换）"""
+        """Implementation details."""
         if not self._exp_writer:
             return None
-        # 尝试使用 from_chain_experience（如果存在）
+
         if hasattr(self._exp_writer, "from_chain_experience"):
             return await self._exp_writer.from_chain_experience(
                 chain_name=chain_name, experience=exp, session_id=session_id,
             )
-        # Stage 12: 无损转换到扩展的 ExperienceTrace
+
         from ..core.models import ExperienceTrace
         trace = ExperienceTrace(
             session_id=session_id,
             task_description=f"工具链经验: {chain_name}",
             lessons_learned=exp.lesson,
-            tools_used=json.dumps(exp.tool_pipeline),  # 兼容旧代码
+            tools_used=json.dumps(exp.tool_pipeline),
             applicable_scenarios=json.dumps(["pipeline"]),
             confidence=exp.confidence,
-            # Stage 12: 链级扩展字段（零损失）
+
             experience_type="chain",
             chain_name=chain_name,
             tool_sequence=json.dumps(exp.tool_pipeline),
@@ -415,7 +401,7 @@ class Consolidator:
     async def _extract_and_archive_chains(
         self, chain_name: str, chains: list, job: Job,
     ) -> int:
-        """未达阈值的链 → LLM 提取 → 归档。"""
+        """Implementation details."""
         if not self._llm:
             return 0
         from ..extract.chain_experience_extractor import ChainExperienceExtractor
@@ -435,18 +421,9 @@ class Consolidator:
         self, job: Job, wm: WorkingMemory,
         slide_html_dir: str = "",
     ) -> int:
-        """偏好归档：原始用户消息 + 指纹+多模态分析（仅最终PPT）→ UserProfile (LTM)。
+        """Implementation details."""
 
-        流程：
-        1. 写入 AtomicPreference 表作为提取记录暂存（路径 A，保留）
-        2. 使用 Job 开始时已推断的 intent（避免重复推断）
-        3. 收集原始用户消息
-        4. 从最终 PPT HTML 文件提取视觉指纹 + 多模态分析（仅在此处一次性执行）
-        5. 一次性 LLM 调用，从原始数据直接更新 UserProfile 各维度
-        6. 保存 UserProfile 到对应 intent 分区
-        """
-        # Stage 15: 过滤掉 ProfileInjectionRouter 注入的 LTM 画像条目，避免循环写回
-        # 保留 profile_override（用户明确覆盖）和其他来源（当前 Job 新增）
+
         from ..inject.profile_injection_router import LTM_INJECT_SOURCE, PROFILE_OVERRIDE_SOURCE
         wm_prefs = [p for p in wm._temp_preferences
                      if p.source_task_id != LTM_INJECT_SOURCE]
@@ -456,12 +433,12 @@ class Consolidator:
             f"(removed {len(wm._temp_preferences) - len(wm_prefs)} LTM inject entries)"
         )
 
-        # 收集原始用户消息（即使没有 wm_prefs，也可从原始消息中提取偏好）
+
         raw_messages = self._collect_raw_user_messages(job)
 
-        # 模板复用的主记忆来自 template_usage_history，而不是语义 Consolidator。
-        # 无论用户消息里出现什么模板关键词，都不要把模板偏好归档到
-        # AtomicPreference / UserProfile.template，避免与 usage-driven 记忆冲突。
+
+
+
         archived_wm_prefs: list[TempPreference] = []
         skipped_job_local_prefs = 0
         skipped_template_prefs = 0
@@ -492,8 +469,8 @@ class Consolidator:
                 skipped_template_prefs,
             )
 
-        # [DISABLED] 从最终 PPT 提取的视觉指纹反映的是模型偏好而非用户偏好，
-        # 用户满意只代表可接受，不代表这是用户的审美偏好。暂时禁用此功能。
+
+
         # slide_analysis = self._extract_fingerprints_from_final_ppt(slide_html_dir)
         # vlm_supplement = await self._vlm_analyze_final_ppt(
         #     slide_html_dir, stat_analysis=slide_analysis,
@@ -508,7 +485,7 @@ class Consolidator:
         pref_write_count = 0
         profile_updated = False
 
-        # 路径 A：写入 AtomicPreference（暂存记录，保留）
+
         if self._enable_atomic_preference_writeback and self._pref_store and archived_wm_prefs:
             for pref in archived_wm_prefs:
                 try:
@@ -534,15 +511,15 @@ class Consolidator:
                 len(archived_wm_prefs),
             )
 
-        # 路径 B：原始数据驱动 UserProfile 更新
+
         if self._enable_profile_writeback and self._profile_store:
             try:
-                # 优先使用 Job 开始时已推断并缓存的 intent，避免重复推断
+
                 write_intent = getattr(job, "write_intent", "") or getattr(job, "intent", "") or ""
                 task_intent = getattr(job, "intent", "") or ""
                 core_persona = getattr(job, "core_persona", "") or ""
                 if not write_intent:
-                    # Fallback: 如果 Job.intent 为空（旧版本或异常情况），才重新推断
+
                     write_intent = await self._infer_job_intent(job)
                     task_intent = task_intent or write_intent
                     logger.info("Consolidator: fallback inferred write_intent='%s' for job %s", write_intent, job.id)
@@ -557,7 +534,7 @@ class Consolidator:
 
                 profile = await self._profile_store.get(job.user_id, intent=write_intent)
 
-                # ArtifactDumper: profile_before 快照
+
                 _profile_before_snapshot = None
                 if self._artifact_dumper:
                     try:
@@ -568,7 +545,7 @@ class Consolidator:
                     except Exception:
                         pass
 
-                # 主路径：一次性 LLM 从原始数据更新 UserProfile
+
                 _update_method = "none"
                 if self._llm and (raw_messages or slide_analysis):
                     try:
@@ -591,12 +568,12 @@ class Consolidator:
                             "LLM raw profile update failed, "
                             "falling back to legacy per-dimension merge: %s", e,
                         )
-                        # Fallback: 旧路径（逐维度合并 WM 偏好）
+
                         if archived_wm_prefs:
                             self._legacy_merge_preferences(profile, archived_wm_prefs)
                             _update_method = "legacy_fallback"
                 elif archived_wm_prefs:
-                    # 无 LLM 或无原始数据：rule-based fallback
+
                     self._legacy_merge_preferences(profile, archived_wm_prefs)
                     _update_method = "legacy_rule_based"
 
@@ -608,7 +585,7 @@ class Consolidator:
                 # writeback isolated to that bucket to avoid duplicate profiles and
                 # cross-intent contamination.
 
-                # ArtifactDumper: 偏好归档产物
+
                 if self._artifact_dumper:
                     try:
                         from ..collect.artifact_dumper import ArtifactDumper as _AD
@@ -640,11 +617,11 @@ class Consolidator:
 
         return pref_write_count + (1 if profile_updated else 0)
 
-    # ── 原始数据收集 ──
+
 
     @staticmethod
     def _collect_raw_user_messages(job: Job) -> str:
-        """从 Job.rounds 收集全部用户消息原文，保留完整上下文。"""
+        """Implementation details."""
         rounds = getattr(job, "rounds", [])
         if not rounds:
             return ""
@@ -657,16 +634,7 @@ class Consolidator:
 
     @staticmethod
     def _extract_fingerprints_from_final_ppt(slide_html_dir: str) -> str:
-        """从最终 PPT 的 HTML 文件目录提取视觉指纹（零 LLM 成本）。
-
-        仅在 Consolidation 时一次性执行，针对最终 PPT 的所有幻灯片。
-
-        Args:
-            slide_html_dir: 最终 PPT 的 HTML 文件目录路径。
-
-        Returns:
-            视觉分析文本（确定性数据）。
-        """
+        """Implementation details."""
         if not slide_html_dir:
             return "无幻灯片视觉数据"
 
@@ -678,7 +646,7 @@ class Consolidator:
         if not html_files:
             return "无幻灯片视觉数据"
 
-        # 从最终 HTML 文件提取视觉指纹
+
         from ..extract.visual_fingerprint import SlideVisualFingerprintExtractor
         fp_extractor = SlideVisualFingerprintExtractor()
         all_fps = []
@@ -694,7 +662,7 @@ class Consolidator:
 
         lines: list[str] = [f"共 {len(all_fps)} 张最终幻灯片的视觉指纹分析："]
 
-        # 颜色统计
+
         from collections import Counter
         color_freq: Counter[str] = Counter()
         for fp in all_fps:
@@ -706,7 +674,7 @@ class Consolidator:
                 f"- 常用颜色: {', '.join(f'{c}({n}次)' for c, n in top_colors)}"
             )
 
-        # 字体统计
+
         font_freq: Counter[str] = Counter()
         for fp in all_fps:
             for fname, _ in fp.fonts_used:
@@ -717,7 +685,7 @@ class Consolidator:
                 f"- 常用字体: {', '.join(f'{f}({n}次)' for f, n in top_fonts)}"
             )
 
-        # 字号统计
+
         title_sizes = [fp.title_size for fp in all_fps if fp.title_size > 0]
         body_sizes = [fp.body_size for fp in all_fps if fp.body_size > 0]
         if title_sizes:
@@ -727,33 +695,33 @@ class Consolidator:
             avg_body = sum(body_sizes) / len(body_sizes)
             lines.append(f"- 正文字号: 平均 {avg_body:.0f}pt")
 
-        # 背景类型统计
+
         bg_types = Counter(fp.background_type for fp in all_fps if fp.background_type)
         if bg_types:
             lines.append(
                 f"- 背景类型: {', '.join(f'{t}({n}次)' for t, n in bg_types.most_common(3))}"
             )
 
-        # 布局密度
+
         avg_elements = sum(
             sum(fp.element_counts.values()) for fp in all_fps
         ) / max(len(all_fps), 1)
         lines.append(f"- 平均元素数: {avg_elements:.1f}")
 
-        # 文本密度
+
         avg_title_chars = sum(fp.title_char_count for fp in all_fps) / max(len(all_fps), 1)
         avg_body_chars = sum(fp.body_char_count for fp in all_fps) / max(len(all_fps), 1)
         lines.append(
             f"- 文本量: 标题平均 {avg_title_chars:.0f} 字, 正文平均 {avg_body_chars:.0f} 字"
         )
 
-        # 图文比例
+
         ratios = [fp.image_text_ratio for fp in all_fps if fp.image_text_ratio > 0]
         if ratios:
             avg_ratio = sum(ratios) / len(ratios)
             lines.append(f"- 图文面积比: {avg_ratio:.2f}:1")
 
-        # 最后一张幻灯片详情
+
         last_fp = all_fps[-1]
         lines.append(f"\n最终幻灯片详情 (layout={last_fp.layout_name or 'unknown'}):")
         if last_fp.colors_used:
@@ -768,25 +736,14 @@ class Consolidator:
 
         return "\n".join(lines)
 
-    # ── VLM 视觉分析 ──
+
 
     async def _vlm_analyze_final_ppt(
         self,
         slide_html_dir: str,
         stat_analysis: str = "",
     ) -> str:
-        """VLM 分析最终 PPT — 在 consolidation 时一次性调用，补充统计层无法捕获的主观维度。
-
-        优先复用 PlaywrightConverter 在生成阶段已产生的 .slide_images-pdf-* 截图，
-        避免重复启动 Playwright。仅在找不到已有截图时才 fallback 到实时截图。
-
-        Args:
-            slide_html_dir: 最终 PPT 的 HTML 文件目录路径。
-            stat_analysis: 统计分析文本（作为 VLM prompt 的上下文）。
-
-        Returns:
-            VLM 分析结果文本，可直接拼接到 slide_analysis 中。空字符串表示无 VLM 或无 HTML。
-        """
+        """Implementation details."""
         if not self._vlm or not slide_html_dir:
             return ""
 
@@ -802,9 +759,9 @@ class Consolidator:
 
         screenshots: list[str] = []
 
-        # ── 优先复用已有截图 ──
-        # PlaywrightConverter 在 HTML→PDF 转换时已生成 .slide_images-pdf-<stem>/ 目录
-        # 位于 slide_html_dir 的父目录（即 workspace）下
+
+
+
         workspace_dir = html_dir.parent
         existing_dirs = sorted(
             workspace_dir.glob(".slide_images-pdf-*"),
@@ -828,9 +785,9 @@ class Consolidator:
                         "VLM: reusing %d existing screenshots from %s",
                         len(screenshots), img_dir.name,
                     )
-                    break  # 使用最新的一组截图即可
+                    break
 
-        # ── Fallback: Playwright 实时截图 ──
+
         if not screenshots:
             try:
                 from ..utils.webview import PlaywrightConverter
@@ -892,7 +849,7 @@ class Consolidator:
 
         return ""
 
-    # ── 原始数据 LLM 更新 ──
+
 
     async def _llm_raw_profile_update(
         self,
@@ -904,7 +861,7 @@ class Consolidator:
         task_intent: str = DEFAULT_INTENT,
         core_persona: str = "",
     ) -> None:
-        """一次性 LLM 调用：从原始用户消息 + 视觉分析直接更新 UserProfile。"""
+        """Implementation details."""
         current_profile_text = json.dumps(
             asdict(profile), ensure_ascii=False, indent=2,
         )
@@ -927,7 +884,7 @@ class Consolidator:
             )
             text = response.choices[0].message.content or ""
 
-        # 提取 JSON
+
         start = text.find("{")
         end = text.rfind("}")
         if start < 0 or end <= start:
@@ -943,7 +900,7 @@ class Consolidator:
         if not updates:
             return
 
-        # 按维度更新 profile
+
         dim_map = profile.get_dimension_map()
         from dataclasses import fields as dc_fields
         system_managed_template_fields = {
@@ -970,7 +927,7 @@ class Consolidator:
                 continue
             valid_fields = {f.name for f in dc_fields(type(sub_pref))}
             for k, v in dim_updates.items():
-                if k == "keywords":  # 系统自动管理
+                if k == "keywords":
                     continue
                 if dim_name == "template" and k in system_managed_template_fields:
                     continue
@@ -991,7 +948,7 @@ class Consolidator:
                             ]
                         if not v and not current_val:
                             continue
-                    # list 类型字段：合并去重
+
                     if isinstance(current_val, list) and isinstance(v, list):
                         merged = list(current_val)
                         for item in v:
@@ -1014,24 +971,18 @@ class Consolidator:
         profile: UserProfile,
         wm_prefs: list[TempPreference],
     ) -> None:
-        """旧路径 fallback：逐条 WM 偏好按维度 rule-based 合并。"""
+        """Implementation details."""
         for pref in wm_prefs:
             dim = profile.match_dimension(pref.content)
             self._rule_merge_dimension(profile, dim, [pref])
 
     async def _infer_job_intent(self, job: Job) -> str:
-        """从 Job 的用户消息中推断 intent 类别。
+        """Implementation details."""
 
-        策略（按优先级降级）：
-        1. LLM 分类（如果可用）— 优先选已有类别，允许返回新类别
-        2. 关键词规则匹配
-        3. 返回 "default"
-        """
-        # 收集 Job 中所有用户消息
         user_messages = []
         rounds = getattr(job, "rounds", [])
         if rounds:
-            for round_obj in rounds[:3]:  # 只看前 3 轮，避免过长
+            for round_obj in rounds[:3]:
                 if hasattr(round_obj, "user_message") and round_obj.user_message:
                     user_messages.append(round_obj.user_message)
         combined = " ".join(user_messages)[:500] if user_messages else ""
@@ -1039,7 +990,7 @@ class Consolidator:
         if not combined:
             return DEFAULT_INTENT
 
-        # 使用统一的 LLM intent 分类（降级到关键词匹配）
+
         from ..core.models import classify_intent_with_llm
         return await classify_intent_with_llm(
             combined,
@@ -1057,16 +1008,16 @@ class Consolidator:
         task_intent: str = DEFAULT_INTENT,
         core_persona: str = "",
     ) -> None:
-        """LLM 单维度合并：将新偏好合并到 Profile 对应维度。"""
+        """Implementation details."""
         dim_map = profile.get_dimension_map()
         sub_pref = dim_map.get(dim_name)
         if sub_pref is None:
             return
 
-        # 构建当前维度状态文本
+
         current_state = json.dumps(asdict(sub_pref), ensure_ascii=False, indent=2)
-        # 包含 superseded 标记，让 LLM 看到偏好演变历史
-        # 路径 B 的 structured_data 作为参考参数一并展示给 LLM
+
+
         lines = []
         for p in new_prefs:
             line = f"- [{p.preference_type}] {p.content}"
@@ -1089,13 +1040,13 @@ class Consolidator:
             response = await self._llm(prompt)
             text = str(response).strip() if response else ""
         except Exception:
-            # 兼容 llm.run() 接口
+
             response = await self._llm.run(
                 messages=[{"role": "user", "content": prompt}],
             )
             text = response.choices[0].message.content or ""
 
-        # 提取 JSON
+
         start = text.find("{")
         end = text.rfind("}")
         if start >= 0 and end > start:
@@ -1104,7 +1055,7 @@ class Consolidator:
             except json.JSONDecodeError:
                 logger.warning(f"LLM response JSON parse failed for dim '{dim_name}'")
                 return
-            # 用返回的字段更新子结构，只更新已知字段
+
             sub_cls = type(sub_pref)
             valid_fields = {f.name for f in sub_cls.__dataclass_fields__.values()}
             for k, v in updated.items():
@@ -1117,7 +1068,7 @@ class Consolidator:
         dim_name: str,
         prefs: list[TempPreference],
     ) -> None:
-        """Rule-based fallback: 无 LLM 时利用 structured_data 精确写入，否则追加到 notes。"""
+        """Implementation details."""
         dim_map = profile.get_dimension_map()
         sub_pref = dim_map.get(dim_name)
         if sub_pref is None:
@@ -1131,7 +1082,7 @@ class Consolidator:
 
         valid_fields = {f.name for f in type(sub_pref).__dataclass_fields__.values()}
         for p in prefs:
-            # 有 structured_data 时，按字段精确写入
+
             if p.structured_data:
                 for k, v in p.structured_data.items():
                     if k not in valid_fields:
@@ -1145,13 +1096,13 @@ class Consolidator:
                         setattr(sub_pref, k, merged)
                     else:
                         setattr(sub_pref, k, v)
-            # content 追加到 notes 作为证据
+
             notes = getattr(sub_pref, "notes", None)
             if notes is not None and p.content not in notes:
                 notes.append(p.content)
 
     def save_backup(self, job: Job, wm: WorkingMemory) -> None:
-        """Consolidation 失败时保存备份。"""
+        """Implementation details."""
         backup_dir = self._workspace / ".memory"
         backup_dir.mkdir(parents=True, exist_ok=True)
         backup_file = backup_dir / f"pending_consolidation_{job.id}.json"

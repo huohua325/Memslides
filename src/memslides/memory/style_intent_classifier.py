@@ -1,8 +1,4 @@
-"""StyleIntentClassifier — 风格意图分类器 (Stage 14)
-
-用于 Design 阶段之前：判断用户是否有模板/风格意图，提取风格属性。
-与 IntentClassifier（用于 Modify 阶段）并行存在。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -24,22 +20,22 @@ except ImportError:
 
 
 class TemplateIntent(StrEnum):
-    """模板意图类型"""
-    EXPLICIT = "explicit"      # 明确要求模板: "用商务模板"、"用上次那个模板"
-    IMPLICIT = "implicit"      # 隐含风格偏好: "简约风格"、"学术风格"
-    NONE = "none"              # 无风格/模板意图: 纯内容描述
-    ANTI = "anti"              # 明确拒绝模板: "不要用模板"、"自由发挥"
+    """Implementation details."""
+    EXPLICIT = "explicit"
+    IMPLICIT = "implicit"
+    NONE = "none"
+    ANTI = "anti"
 
 
 class TemplateUseDecision(StrEnum):
-    """第一阶段模板启用 gate。"""
+    """Implementation details."""
     USE_TEMPLATE = "use_template"
     NO_TEMPLATE = "no_template"
     FORBID_TEMPLATE = "forbid_template"
 
 
 class TemplateUseBasis(StrEnum):
-    """第一阶段模板启用或跳过的依据。"""
+    """Implementation details."""
     EXPLICIT_TEXT = "explicit_text"
     EXPLICIT_FILE = "explicit_file"
     MEMORY_REUSE = "memory_reuse"
@@ -51,12 +47,12 @@ class TemplateUseBasis(StrEnum):
 
 @dataclass
 class StyleAttributes:
-    """从用户输入中提取的风格属性"""
+    """Implementation details."""
     narrative_style: str = ""      # academic | business | creative | technical | educational
     info_density: str = ""         # low | medium | high
     color_tone: str = ""           # warm | cool | neutral | vibrant | dark
     layout_preference: str = ""    # minimal | balanced | dense
-    reference_style: str = ""      # 参考风格描述 (如 "像苹果发布会")
+    reference_style: str = ""
 
     def is_empty(self) -> bool:
         return not any([
@@ -67,15 +63,15 @@ class StyleAttributes:
 
 @dataclass
 class StyleIntentResult:
-    """风格意图分类结果"""
+    """Implementation details."""
     template_intent: TemplateIntent = TemplateIntent.NONE
     template_use_decision: TemplateUseDecision = TemplateUseDecision.NO_TEMPLATE
     template_use_basis: TemplateUseBasis = TemplateUseBasis.CONTENT_ONLY
     style_attributes: StyleAttributes = field(default_factory=StyleAttributes)
-    template_query: str = ""           # 用于模板检索的关键词
-    memory_hint: str = ""              # 记忆相关提示: "上次的模板"、"之前用过的"
+    template_query: str = ""
+    memory_hint: str = ""
     confidence: float = 0.5
-    reasoning: str = ""                # LLM 推理过程
+    reasoning: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -91,26 +87,26 @@ class StyleIntentResult:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 规则匹配器 (快速路径，无需 LLM)
+
 # ══════════════════════════════════════════════════════════════════════════════
 
-# 明确模板意图的关键词
+
 EXPLICIT_TEMPLATE_PATTERNS = [
-    r"(?:请)?用\s*[^，。,.]{0,40}?模板",      # "用商务模板"、"用这个模板"
-    r"套用\s*[^，。,.]{0,40}?模板",           # "套用XX模板"
-    r"使用\s*[^，。,.]{0,40}?模板",           # "使用XX模板"
-    r"按照\s*[^，。,.]{0,60}?模板",           # "按照XX模板"
-    r"按\s*[^，。,.]{0,40}?模板",             # "按商务模板生成"
-    r"用上次.{0,4}模板",       # "用上次的模板"
-    r"用之前.{0,4}模板",       # "用之前的模板"
+    r"(?:请)?用\s*[^，。,.]{0,40}?模板",
+    r"套用\s*[^，。,.]{0,40}?模板",
+    r"使用\s*[^，。,.]{0,40}?模板",
+    r"按照\s*[^，。,.]{0,60}?模板",
+    r"按\s*[^，。,.]{0,40}?模板",
+    r"用上次.{0,4}模板",
+    r"用之前.{0,4}模板",
     r"用那个模板",
     r"\buse\b.{0,80}\btemplate\b",
     r"\bapply\b.{0,80}\btemplate\b",
 ]
 
-# 明确拒绝模板的关键词
+
 ANTI_TEMPLATE_PATTERNS = [
-    r"不要.{0,2}模板",         # "不要用模板"
+    r"不要.{0,2}模板",
     r"不用模板",
     r"自由发挥",
     r"自由设计",
@@ -122,7 +118,7 @@ ANTI_TEMPLATE_PATTERNS = [
     r"freeform",
 ]
 
-# 隐含风格偏好的关键词映射
+
 STYLE_KEYWORD_MAP = {
     # narrative_style
     "学术": {"narrative_style": "academic"},
@@ -158,7 +154,7 @@ STYLE_KEYWORD_MAP = {
     "vibrant": {"color_tone": "vibrant"},
 }
 
-# 记忆相关提示
+
 MEMORY_HINT_PATTERNS = [
     (r"上次.{0,4}模板", "last_template"),
     (r"之前.{0,4}模板", "previous_template"),
@@ -168,23 +164,18 @@ MEMORY_HINT_PATTERNS = [
     (r"previous.*template", "previous_template"),
 ]
 
-# 参考风格模式
+
 REFERENCE_STYLE_PATTERNS = [
-    r"像(.{2,20})一样",        # "像苹果发布会一样"
-    r"类似(.{2,20})风格",      # "类似TED风格"
-    r"参考(.{2,20})的?风格",   # "参考苹果的风格"
+    r"像(.{2,20})一样",
+    r"类似(.{2,20})风格",
+    r"参考(.{2,20})的?风格",
     r"like (.{2,30})",         # "like Apple keynote"
     r"similar to (.{2,30})",   # "similar to TED talks"
 ]
 
 
 class StyleIntentClassifier:
-    """风格意图分类器
-
-    支持两种模式:
-    1. 规则匹配 (快速路径): 基于关键词匹配，无需 LLM
-    2. LLM 分类 (精确路径): 调用 LLM 进行深度分析
-    """
+    """Implementation details."""
 
     def __init__(
         self,
@@ -192,12 +183,7 @@ class StyleIntentClassifier:
         artifact_writer: Any = None,
         use_llm: bool = True,
     ):
-        """
-        Args:
-            llm: LLM 调用接口 (async callable 或有 run 方法的对象)
-            artifact_writer: 中间产物写入器
-            use_llm: 是否使用 LLM (False 时仅用规则匹配)
-        """
+        """Implementation details."""
         self.llm = llm
         self._artifact_writer = artifact_writer
         self._use_llm = use_llm and llm is not None
@@ -213,27 +199,15 @@ class StyleIntentClassifier:
         memory_intent: str = "",
         template_profile_context: dict[str, Any] | None = None,
     ) -> StyleIntentResult:
-        """分类用户消息的风格意图
+        """Implementation details."""
 
-        Args:
-            user_message: 用户输入
-            user_preferences: 用户历史偏好（从记忆系统获取）
-            available_templates: 可用模板列表（用于提示 LLM）
-            template_store: TemplateStore 实例（用于场景匹配）
-            user_id: 用户 ID（用于查询历史记录）
-            embedding_func: 嵌入函数（用于生成查询向量）
-
-        Returns:
-            StyleIntentResult
-        """
-        # 1. 快速规则匹配
         rule_result = self._rule_based_classify(user_message)
         rule_result = self._apply_profile_defaults(
             rule_result,
             template_profile_context,
         )
 
-        # 如果规则匹配置信度高，优先保留强规则，但允许 LLM 补充风格属性
+
         if (
             rule_result.template_use_decision
             in (TemplateUseDecision.USE_TEMPLATE, TemplateUseDecision.FORBID_TEMPLATE)
@@ -265,7 +239,7 @@ class StyleIntentClassifier:
             self._save_artifact(user_message, "", "", rule_result, source="rule")
             return rule_result
 
-        # 2. 场景匹配 (如果 template_store 可用)
+
         if template_store is not None and embedding_func is not None:
             try:
                 matched_record, similarity = await self._find_similar_usage(
@@ -277,7 +251,7 @@ class StyleIntentClassifier:
                     threshold=0.75,
                 )
                 if matched_record is not None:
-                    # 场景匹配成功，返回 IMPLICIT 意图
+
                     scenario_result = StyleIntentResult(
                         template_intent=TemplateIntent.IMPLICIT,
                         template_use_decision=TemplateUseDecision.NO_TEMPLATE,
@@ -299,7 +273,7 @@ class StyleIntentClassifier:
             except Exception as e:
                 logger.warning(f"Scenario matching failed: {e}")
 
-        # 3. LLM 深度分析 (如果启用)
+
         if self._use_llm:
             try:
                 llm_result = await self._llm_classify(
@@ -308,7 +282,7 @@ class StyleIntentClassifier:
                     available_templates,
                     template_profile_context,
                 )
-                # 合并规则结果和 LLM 结果
+
                 final_result = self._apply_profile_defaults(
                     self._merge_results(rule_result, llm_result),
                     template_profile_context,
@@ -320,11 +294,11 @@ class StyleIntentClassifier:
             except Exception as e:
                 logger.warning(f"LLM classification failed, using rule result: {e}")
 
-        # 降级到规则结果
+
         return rule_result
 
     def _rule_based_classify(self, user_message: str) -> StyleIntentResult:
-        """基于规则的快速分类"""
+        """Implementation details."""
         msg_lower = user_message.lower()
 
         if self._looks_like_template_reuse_request(msg_lower):
@@ -344,7 +318,7 @@ class StyleIntentClassifier:
                 reasoning="Matched template-reuse semantics before anti-template patterns",
             )
 
-        # 检查明确拒绝模板
+
         for pattern in ANTI_TEMPLATE_PATTERNS:
             if re.search(pattern, msg_lower):
                 return StyleIntentResult(
@@ -355,12 +329,12 @@ class StyleIntentClassifier:
                     reasoning="Matched anti-template pattern",
                 )
 
-        # 检查明确要求模板
+
         template_query = ""
         for pattern in EXPLICIT_TEMPLATE_PATTERNS:
             match = re.search(pattern, msg_lower)
             if match:
-                # 提取模板关键词
+
                 template_query = self._extract_template_query(user_message, match)
                 memory_hint = self._extract_memory_hint(user_message)
                 return StyleIntentResult(
@@ -392,7 +366,7 @@ class StyleIntentClassifier:
                 reasoning=f"Matched strong reference style: {reference_matches}",
             )
 
-        # 检查隐含风格偏好
+
         style_attrs = StyleAttributes()
         matched_keywords = []
         for keyword, attrs in STYLE_KEYWORD_MAP.items():
@@ -413,7 +387,7 @@ class StyleIntentClassifier:
                 reasoning=f"Matched style keywords: {matched_keywords}",
             )
 
-        # 无明确意图
+
         return StyleIntentResult(
             template_intent=TemplateIntent.NONE,
             template_use_decision=TemplateUseDecision.NO_TEMPLATE,
@@ -509,7 +483,7 @@ class StyleIntentClassifier:
         result: StyleIntentResult,
         template_profile_context: dict[str, Any] | None,
     ) -> StyleIntentResult:
-        """用稳定画像补齐风格属性，并在必要时提供弱隐式风格意图。"""
+        """Implementation details."""
         if result.template_intent == TemplateIntent.ANTI:
             return result
 
@@ -554,7 +528,7 @@ class StyleIntentClassifier:
         return result
 
     def _extract_template_query(self, message: str, match: re.Match | None) -> str:
-        """从匹配中提取模板查询关键词"""
+        """Implementation details."""
         msg = (message or "").strip()
 
         name_patterns = [
@@ -579,7 +553,7 @@ class StyleIntentClassifier:
 
     @staticmethod
     def _clean_template_query(raw_query: str) -> str:
-        """清洗模板查询词，尽量保留模板名，去掉动作词和噪声。"""
+        """Implementation details."""
         query = (raw_query or "").strip()
         if not query:
             return ""
@@ -617,7 +591,7 @@ class StyleIntentClassifier:
         return query
 
     def _extract_memory_hint(self, message: str) -> str:
-        """提取记忆相关提示"""
+        """Implementation details."""
         msg_lower = message.lower()
         for pattern, hint_type in MEMORY_HINT_PATTERNS:
             if re.search(pattern, msg_lower):
@@ -633,31 +607,11 @@ class StyleIntentClassifier:
         memory_intent: str = "",
         threshold: float = 0.75,
     ) -> tuple[Any | None, float]:
-        """通过嵌入相似度查找最相似的历史使用记录
-
-        Args:
-            user_message: 当前用户输入
-            template_store: TemplateStore 实例
-            user_id: 用户 ID
-            embedding_func: 嵌入函数
-            threshold: 最小相似度阈值（默认 0.75）
-
-        Returns:
-            (matched_record, similarity_score) 或 (None, 0.0)
-
-        Algorithm:
-            1. 获取使用历史: template_store.get_usage_history(user_id, limit=20)
-            2. 生成查询嵌入: embedding_func([user_message])
-            3. 计算与每条记录的余弦相似度
-            4. 跳过 embedding 为 None 的记录
-            5. 找到最大相似度
-            6. 如果 max >= threshold，返回 (record, score)
-            7. 否则返回 (None, 0.0)
-        """
+        """Implementation details."""
         from memslides.memory.core.embedding import cosine_similarity
         import numpy as np
 
-        # 1. 获取使用历史
+
         usage_history = await template_store.get_usage_history(
             user_id=user_id,
             limit=20,
@@ -675,7 +629,7 @@ class StyleIntentClassifier:
             logger.debug("[STYLE_INTENT] No usage history found for scenario matching")
             return (None, 0.0)
 
-        # 2. 生成查询嵌入
+
         try:
             query_embeddings = await embedding_func([user_message])
             if query_embeddings is None or len(query_embeddings) == 0:
@@ -686,12 +640,12 @@ class StyleIntentClassifier:
             logger.warning(f"[STYLE_INTENT] Embedding generation failed: {e}")
             return (None, 0.0)
 
-        # 3. 计算相似度并找到最佳匹配
+
         max_similarity = 0.0
         best_match = None
 
         for record in usage_history:
-            # 跳过没有嵌入的记录
+
             if record.user_message_embedding is None:
                 continue
 
@@ -715,7 +669,7 @@ class StyleIntentClassifier:
                 logger.debug(f"[STYLE_INTENT] Failed to compute similarity for record {record.id}: {e}")
                 continue
 
-        # 4. 检查是否超过阈值
+
         if max_similarity >= threshold and best_match is not None:
             logger.info(
                 f"[STYLE_INTENT] Found similar scenario: template={best_match.template_name}, "
@@ -734,7 +688,7 @@ class StyleIntentClassifier:
         available_templates: list[str] | None,
         template_profile_context: dict[str, Any] | None = None,
     ) -> StyleIntentResult:
-        """使用 LLM 进行深度分类"""
+        """Implementation details."""
         prompt = self._build_prompt(
             user_message,
             user_preferences,
@@ -744,7 +698,7 @@ class StyleIntentClassifier:
         result_text = await self._call_llm(prompt)
         result = self._parse_llm_result(result_text)
 
-        # 保存中间产物
+
         self._save_artifact(user_message, prompt, result_text, result, source="llm")
 
         return result
@@ -831,8 +785,8 @@ class StyleIntentClassifier:
 }}"""
 
     def _parse_llm_result(self, result_text: str) -> StyleIntentResult:
-        """解析 LLM 返回的 JSON"""
-        # 尝试提取 JSON
+        """Implementation details."""
+
         json_match = re.search(r'\{[\s\S]*\}', result_text)
         if not json_match:
             logger.warning("No JSON found in LLM response")
@@ -889,7 +843,7 @@ class StyleIntentClassifier:
     def _merge_results(
         self, rule_result: StyleIntentResult, llm_result: StyleIntentResult
     ) -> StyleIntentResult:
-        """合并规则结果和 LLM 结果"""
+        """Implementation details."""
         if (
             rule_result.template_use_decision
             in (TemplateUseDecision.USE_TEMPLATE, TemplateUseDecision.FORBID_TEMPLATE)
@@ -915,7 +869,7 @@ class StyleIntentClassifier:
         ):
             return llm_result
 
-        # 否则使用规则结果，但补充 LLM 提取的风格属性
+
         if rule_result.style_attributes.is_empty() and not llm_result.style_attributes.is_empty():
             rule_result.style_attributes = llm_result.style_attributes
         if not rule_result.memory_hint and llm_result.memory_hint:
@@ -926,7 +880,7 @@ class StyleIntentClassifier:
         return rule_result
 
     async def _call_llm(self, prompt: str) -> str:
-        """调用 LLM"""
+        """Implementation details."""
         if callable(self.llm) and not hasattr(self.llm, "run"):
             return await self.llm(prompt)
         from memslides.memory.extract.llm_compat import extract_response_text, resolve_llm_retry_times
@@ -948,7 +902,7 @@ class StyleIntentClassifier:
         result: StyleIntentResult,
         source: str,
     ) -> None:
-        """保存中间产物"""
+        """Implementation details."""
         if not self._artifact_writer:
             return
 

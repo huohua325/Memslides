@@ -1,14 +1,4 @@
-"""
-高清PDF图片提取模块
-
-利用PDF parser布局检测的figure边界框 + PyMuPDF高DPI页面渲染，
-从学术PDF中提取高清完整figure/table（2000+px），替代嵌入图片提取。
-
-策略（3层fallback）：
-1. PDF parser model.json bbox + PyMuPDF page.get_pixmap(clip=rect, dpi=300)
-2. PyMuPDF cluster_drawings() 自动检测 + 渲染
-3. PyMuPDF extract_image() 提取嵌入光栅图（仅对非向量图有效）
-"""
+"""Implementation details."""
 import hashlib
 import json
 import logging
@@ -19,7 +9,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# PDF parser model.json category_id 定义
+
 CATEGORY_FIGURE = 3
 CATEGORY_FIGURE_CAPTION = 4
 CATEGORY_TABLE = 5
@@ -29,7 +19,7 @@ CAPTION_LABEL_RE = re.compile(r"^(Figure|Table)\s+(\d+)\s*:")
 
 @dataclass
 class FigureInfo:
-    """提取的figure/table结构化信息"""
+    """Implementation details."""
     page_num: int
     bbox: tuple[float, float, float, float]  # (x0, y0, x1, y1) in page coords
     image_path: str
@@ -37,7 +27,7 @@ class FigureInfo:
     height: int
     category: str  # "figure" | "table"
     caption: str = ""
-    pdf_parser_img_name: str = ""  # PDF parser缩略图文件名（用于替换映射）
+    pdf_parser_img_name: str = ""
 
 
 def parse_caption_label(caption_text: str) -> tuple[str | None, int | None, str]:
@@ -128,21 +118,7 @@ def extract_hd_images(
     min_size: int = 100,
     dpi: int = 300,
 ) -> list[FigureInfo]:
-    """
-    从PDF中提取高清figure/table图片
-
-    Args:
-        pdf_path: PDF文件路径
-        output_dir: 图片输出目录
-        pdf_parser_model_json: PDF parser model.json路径（含figure bbox）
-        pdf_parser_layout_json: PDF parser layout.json路径（新版在线API布局结果）
-        pdf_parser_content_list_json: PDF parser content_list.json路径（含figure与img_path映射）
-        min_size: 最小图片尺寸（宽或高），过滤小图标
-        dpi: 渲染DPI，默认300
-
-    Returns:
-        list[FigureInfo]: 提取的figure信息列表
-    """
+    """Implementation details."""
     try:
         import fitz
     except ImportError:
@@ -154,7 +130,7 @@ def extract_hd_images(
     has_model_json = bool(pdf_parser_model_json and os.path.exists(pdf_parser_model_json))
     has_layout_json = bool(pdf_parser_layout_json and os.path.exists(pdf_parser_layout_json))
 
-    # 策略1：PDF parser bbox + 高DPI渲染
+
     if has_model_json:
         figures = _extract_with_pdf_parser_bbox(
             pdf_path, output_dir, pdf_parser_model_json,
@@ -178,7 +154,7 @@ def extract_hd_images(
     elif has_layout_json:
         logger.info("PDF parser model.json unavailable; using Strategy 1b (PDF parser layout.json)")
 
-    # 策略1b：PDF parser layout.json + 高DPI渲染（新版在线API）
+
     if has_layout_json:
         figures = _extract_with_pdf_parser_layout(
             pdf_path, output_dir, pdf_parser_layout_json,
@@ -194,7 +170,7 @@ def extract_hd_images(
             "falling back to Strategy 2 (cluster_drawings)"
         )
 
-    # 策略2：cluster_drawings + 渲染
+
     figures = _extract_with_cluster_drawings(pdf_path, output_dir, min_size, dpi)
     if figures:
         logger.info(
@@ -203,7 +179,7 @@ def extract_hd_images(
         return figures
     logger.warning("Strategy 2 (cluster_drawings) yielded no figures, trying strategy 3")
 
-    # 策略3：extract_image 提取嵌入光栅图
+
     figures = _extract_embedded_images(pdf_path, output_dir, min_size)
     logger.info(
         f"Strategy 3 (extract_image): extracted {len(figures)} HD images from {pdf_path}"
@@ -212,12 +188,7 @@ def extract_hd_images(
 
 
 def _parse_pdf_parser_model_json(model_json_path: str) -> list[dict]:
-    """
-    解析PDF parser model.json，提取figure/table的bbox信息
-
-    Returns:
-        list[dict]: 每项包含 page_num, bbox, category, page_width, page_height
-    """
+    """Implementation details."""
     with open(model_json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -237,7 +208,7 @@ def _parse_pdf_parser_model_json(model_json_path: str) -> list[dict]:
             if len(poly) < 8:
                 continue
 
-            # poly = [x0,y0, x1,y1, x2,y2, x3,y3] (四角坐标)
+
             xs = [poly[i] for i in range(0, 8, 2)]
             ys = [poly[i] for i in range(1, 8, 2)]
             bbox = (min(xs), min(ys), max(xs), max(ys))
@@ -255,12 +226,7 @@ def _parse_pdf_parser_model_json(model_json_path: str) -> list[dict]:
 
 
 def _parse_content_list_img_mapping(content_list_path: str) -> dict[tuple[int, str, int], str]:
-    """
-    解析PDF parser content_list.json，建立 (page_idx, category) -> img_path 的映射
-
-    Returns:
-        dict: { (page_idx, sequential_key): img_path_basename }
-    """
+    """Implementation details."""
     if not content_list_path or not os.path.exists(content_list_path):
         return {}
 
@@ -327,12 +293,7 @@ def _parse_pdf_parser_layout_json(
     layout_json_path: str,
     content_list_path: str | None = None,
 ) -> list[dict]:
-    """
-    解析新版 PDF parser layout.json，提取 figure/table 的bbox、caption 和原始图片名。
-
-    Returns:
-        list[dict]: 每项包含 page_num, bbox, category, page_width, page_height, caption, pdf_parser_img_name
-    """
+    """Implementation details."""
     with open(layout_json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -427,7 +388,7 @@ def _extract_with_pdf_parser_bbox(
     min_size: int,
     dpi: int,
 ) -> list[FigureInfo]:
-    """策略1：用PDF parser检测的figure/table bbox区域，通过PyMuPDF高DPI渲染"""
+    """Implementation details."""
     import fitz
 
     regions = _parse_pdf_parser_model_json(model_json_path)
@@ -457,7 +418,7 @@ def _extract_with_pdf_parser_bbox(
             page_captions = _find_figure_captions(page)
             page_captions_cache[page_num] = page_captions
 
-        # PDF parser model.json的坐标基于模型推理分辨率，需要映射到PDF页面坐标
+
         model_w = region["page_width"]
         model_h = region["page_height"]
         if model_w > 0 and model_h > 0:
@@ -472,18 +433,18 @@ def _extract_with_pdf_parser_bbox(
         else:
             clip = fitz.Rect(*bbox)
 
-        # 确保clip在页面范围内
+
         clip = clip & page_rect
         if clip.is_empty or clip.width < 5 or clip.height < 5:
             continue
 
-        # 渲染
+
         pix = page.get_pixmap(clip=clip, dpi=dpi)
 
         if pix.width < min_size and pix.height < min_size:
             continue
 
-        # 文件名：page_category_index.png
+
         key = (page_num, category)
         count = fig_counter.get(key, 0)
         fig_counter[key] = count + 1
@@ -499,7 +460,7 @@ def _extract_with_pdf_parser_bbox(
         img_path = os.path.join(output_dir, img_filename)
         pix.save(img_path)
 
-        # 查找对应的PDF parser缩略图文件名
+
         pdf_parser_img = img_mapping.get((page_num, "image" if category == "figure" else "table", count), "")
 
         fig = FigureInfo(
@@ -527,7 +488,7 @@ def _extract_with_pdf_parser_layout(
     min_size: int,
     dpi: int,
 ) -> list[FigureInfo]:
-    """策略1b：用PDF parser layout.json中的布局区域，通过PyMuPDF高DPI渲染"""
+    """Implementation details."""
     import fitz
 
     regions = _parse_pdf_parser_layout_json(layout_json_path, content_list_path)
@@ -605,11 +566,7 @@ def _extract_with_pdf_parser_layout(
 
 
 def _merge_nearby_rects(rects: list, margin: float = 30.0):
-    """
-    将距离较近的矩形合并为复合区域。
-
-    反复扫描，将任意两个距离 < margin 的矩形合并，直到无法继续合并。
-    """
+    """Implementation details."""
     import fitz
 
     if not rects:
@@ -628,7 +585,7 @@ def _merge_nearby_rects(rects: list, margin: float = 30.0):
             for j in range(i + 1, len(merged)):
                 if used[j]:
                     continue
-                # 检查两个矩形是否足够近（扩展margin后相交）
+
                 expanded = fitz.Rect(
                     current.x0 - margin, current.y0 - margin,
                     current.x1 + margin, current.y1 + margin,
@@ -644,12 +601,7 @@ def _merge_nearby_rects(rects: list, margin: float = 30.0):
 
 
 def _find_figure_captions(page) -> list[dict]:
-    """
-    在页面中查找 "Figure N:" / "Table N:" 形式的caption。
-
-    Returns:
-        list[dict]: 每项包含 label, category, bbox, caption_text
-    """
+    """Implementation details."""
     import re as _re
 
     captions = []
@@ -677,17 +629,7 @@ def _extract_with_cluster_drawings(
     min_size: int,
     dpi: int,
 ) -> list[FigureInfo]:
-    """
-    策略2：caption锚定 + 图形元素区域检测
-
-    优先方法（caption锚定）：
-    1. 查找页面中的 "Figure N:" / "Table N:" caption文本
-    2. 收集caption上方（同列区域内）的所有图形元素（向量cluster + 嵌入图片）
-    3. 合并这些元素为figure区域，包含caption本身
-
-    后备方法（纯图形合并）：
-    若页面无caption但有显著图形区域，使用合并+文本覆盖率过滤
-    """
+    """Implementation details."""
     import fitz
 
     doc = fitz.open(pdf_path)
@@ -700,7 +642,7 @@ def _extract_with_cluster_drawings(
         page_rect = page.rect
         page_area = page_rect.width * page_rect.height
 
-        # 收集页面上所有图形元素
+
         graphic_rects = []
         try:
             paths = page.get_drawings()
@@ -722,9 +664,9 @@ def _extract_with_cluster_drawings(
         except Exception as e:
             logger.debug(f"get_image_rects failed on page {page_num + 1}: {e}")
 
-        # 方法A：caption锚定
+
         captions = _find_figure_captions(page)
-        caption_used_graphics = set()  # 记录已被caption方法使用的图形元素索引
+        caption_used_graphics = set()
 
         for cap in captions:
             cap_bbox = cap["bbox"]  # (x0, y0, x1, y1)
@@ -732,30 +674,30 @@ def _extract_with_cluster_drawings(
             cap_x0 = cap_bbox[0]
             cap_x1 = cap_bbox[2]
 
-            # 确定figure所在的列范围（学术论文常为双栏）
+
             page_mid_x = page_rect.width / 2
             if cap_x1 <= page_mid_x + 20:
-                # caption在左栏
+
                 col_x0, col_x1 = 0, page_mid_x + 20
             elif cap_x0 >= page_mid_x - 20:
-                # caption在右栏
+
                 col_x0, col_x1 = page_mid_x - 20, page_rect.width
             else:
-                # caption跨栏（全宽figure）
+
                 col_x0, col_x1 = 0, page_rect.width
 
-            # 收集caption上方、同列内的图形元素
+
             fig_elements = []
             for gi, gr in enumerate(graphic_rects):
-                # 图形元素需要在caption上方，且水平位置与caption列重叠
-                if gr.y1 <= cap_y_top + 10:  # 在caption上方（允许10pt重叠）
+
+                if gr.y1 <= cap_y_top + 10:
                     h_overlap = min(gr.x1, col_x1) - max(gr.x0, col_x0)
                     if h_overlap > 0:
                         fig_elements.append(gr)
                         caption_used_graphics.add(gi)
 
             if not fig_elements:
-                # 没有图形元素在caption上方，尝试caption下方（某些论文caption在上方）
+
                 for gi, gr in enumerate(graphic_rects):
                     if gr.y0 >= cap_y_top - 10:
                         h_overlap = min(gr.x1, col_x1) - max(gr.x0, col_x0)
@@ -766,23 +708,23 @@ def _extract_with_cluster_drawings(
             if not fig_elements:
                 continue
 
-            # 合并图形元素为figure区域
+
             merged = _merge_nearby_rects(fig_elements, margin=50.0)
             if not merged:
                 continue
 
-            # 取最大的合并区域
+
             best = max(merged, key=lambda r: r.width * r.height)
 
-            # 扩展region以包含caption文本
+
             region = best | fitz.Rect(cap_bbox)
 
-            # 确保region在页面范围内，并添加margin
+
             clip = fitz.Rect(
                 max(0, region.x0 - 5),
                 max(0, region.y0 - 5),
                 min(page_rect.width, region.x1 + 5),
-                min(page_rect.height, region.y1 + 15),  # 底部多留空间给多行caption
+                min(page_rect.height, region.y1 + 15),
             )
 
             pix = page.get_pixmap(clip=clip, dpi=dpi)
@@ -814,8 +756,8 @@ def _extract_with_cluster_drawings(
                 f"Caption-anchored {cap['label']}: {img_filename} ({pix.width}x{pix.height})"
             )
 
-        # 方法B：无caption的纯图形区域（后备）
-        # 收集未被caption方法使用的图形元素
+
+
         remaining = [
             gr for gi, gr in enumerate(graphic_rects)
             if gi not in caption_used_graphics
@@ -831,7 +773,7 @@ def _extract_with_cluster_drawings(
                 if area_ratio < 0.05:
                     continue
 
-                # 文本覆盖率过滤
+
                 region_area = region.width * region.height
                 text_cover_area = 0
                 for tb in text_blocks:
@@ -880,7 +822,7 @@ def _extract_embedded_images(
     output_dir: str,
     min_size: int,
 ) -> list[FigureInfo]:
-    """策略3：提取PDF中嵌入的光栅图片（最后手段）"""
+    """Implementation details."""
     import fitz
 
     doc = fitz.open(pdf_path)
@@ -939,24 +881,12 @@ def build_pdf_parser_to_hd_mapping(
     figures: list[FigureInfo],
     pdf_parser_images_dir: str | Path,
 ) -> dict[str, str]:
-    """
-    建立 PDF parser缩略图文件名 -> HD图片路径 的映射
-
-    优先使用 FigureInfo.pdf_parser_img_name（来自content_list.json的精确映射）。
-    若缺少精确映射，则宁可留空也不做顺序盲配，避免 Figure/Table 串义。
-
-    Args:
-        figures: extract_hd_images 返回的figure列表
-        pdf_parser_images_dir: PDF parser缩略图目录
-
-    Returns:
-        dict: { pdf_parser_img_basename: hd_image_path }
-    """
+    """Implementation details."""
     pdf_parser_dir = Path(pdf_parser_images_dir)
     if not pdf_parser_dir.exists():
         return {}
 
-    # 收集PDF parser图片，按文件名排序（保持出现顺序）
+
     pdf_parser_imgs = sorted([
         f.name for f in pdf_parser_dir.iterdir()
         if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp")
@@ -964,15 +894,15 @@ def build_pdf_parser_to_hd_mapping(
 
     mapping = {}
 
-    # 优先：通过content_list精确映射
+
     named_figures = [f for f in figures if f.pdf_parser_img_name]
     for fig in named_figures:
         if fig.pdf_parser_img_name in pdf_parser_imgs:
             mapping[fig.pdf_parser_img_name] = fig.image_path
 
-    # 注意：不要再做“按顺序”盲配。
-    # PDF parser markdown 中有些表格以 HTML table 形式保留，不会出现在图片引用里；
-    # 若这里继续把未命中的 HD 图片按顺序硬配给剩余缩略图，极易把 Figure / Table 串义。
+
+
+
     unnamed_figures = [f for f in figures if not f.pdf_parser_img_name]
     unmatched_pdf_parser = [m for m in pdf_parser_imgs if m not in mapping]
     if unnamed_figures and unmatched_pdf_parser:

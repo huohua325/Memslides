@@ -1,10 +1,4 @@
-"""
-EpisodeStore — 情景记忆 SQLite 存储 (Stage 2)
-
-基于 memory_upgrade_design_v2.md §5.1 + Task 06 定义。
-实现 EpisodeStoreProtocol，使用 DatabaseBackend 进行 CRUD。
-向量搜索通过 UnifiedSearchEngine (ChromaDB + BM25) 支持。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -17,13 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class EpisodeStore:
-    """SQLite 情景记忆存储
-
-    支持:
-    - SQLite CRUD (add/get_by_session/get_active/update_status/archive)
-    - FTS5 全文搜索 (search_by_text)
-    - 可选向量相似度搜索 (search_similar, 需要 UnifiedSearchEngine)
-    """
+    """Implementation details."""
 
     TABLE = "design_episodes"
 
@@ -36,11 +24,11 @@ class EpisodeStore:
         self._unified_search = unified_search
 
     async def add_episode(self, episode: DesignEpisode) -> str:
-        """插入 Episode 到 SQLite（+ UnifiedSearchEngine 双路索引写入）"""
+        """Implementation details."""
         d = episode.to_dict()
         await self.db.insert(self.TABLE, d)
 
-        # ── 组合多字段作为检索文档 ──
+
         doc_parts = [
             episode.user_intent or "",
             episode.design_insight or "",
@@ -48,7 +36,7 @@ class EpisodeStore:
         ]
         document = ". ".join(p for p in doc_parts if p.strip())
 
-        # ── UnifiedSearchEngine 双路写入 (ChromaDB + BM25) ──
+
         if self._unified_search and document:
             try:
                 metadata = {
@@ -72,7 +60,7 @@ class EpisodeStore:
     async def search_similar(
         self, query: str, limit: int = 5, user_id: str = "default",
     ) -> list[DesignEpisode]:
-        """向量相似度搜索"""
+        """Implementation details."""
 
         # ── UnifiedSearchEngine ──
         if self._unified_search:
@@ -95,7 +83,7 @@ class EpisodeStore:
         return await self.search_by_text(query, limit)
 
     async def search_by_text(self, query: str, limit: int = 5) -> list[DesignEpisode]:
-        """FTS5 全文搜索 (fallback)"""
+        """Implementation details."""
         if len(query) < 3:
             return []
         try:
@@ -111,7 +99,7 @@ class EpisodeStore:
             return []
 
     async def get_by_session(self, session_id: str) -> list[DesignEpisode]:
-        """按 session_id 查询"""
+        """Implementation details."""
         rows = await self.db.query(
             f"SELECT * FROM {self.TABLE} WHERE session_id = ? ORDER BY created_at",
             (session_id,),
@@ -119,7 +107,7 @@ class EpisodeStore:
         return [DesignEpisode.from_dict(r) for r in rows]
 
     async def get_active(self, user_id: str) -> list[DesignEpisode]:
-        """查询所有 status='active' 的 Episode"""
+        """Implementation details."""
         rows = await self.db.query(
             f"SELECT * FROM {self.TABLE} WHERE user_id = ? AND status = 'active' "
             f"ORDER BY created_at DESC",
@@ -128,20 +116,20 @@ class EpisodeStore:
         return [DesignEpisode.from_dict(r) for r in rows]
 
     async def update_status(self, episode_id: str, status: str) -> None:
-        """更新状态"""
+        """Implementation details."""
         await self.db.execute(
             f"UPDATE {self.TABLE} SET status = ? WHERE id = ?",
             (status, episode_id),
         )
 
     async def archive(self, episode_id: str) -> None:
-        """归档"""
+        """Implementation details."""
         await self.update_status(episode_id, "archived")
 
     async def list_episodes(
         self, user_id: str, limit: int = 100,
     ) -> list[DesignEpisode]:
-        """按用户列出所有 episode（按创建时间倒序）"""
+        """Implementation details."""
         rows = await self.db.query(
             f"SELECT * FROM {self.TABLE} WHERE user_id = ? "
             f"ORDER BY created_at DESC LIMIT ?",

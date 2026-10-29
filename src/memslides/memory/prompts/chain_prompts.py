@@ -1,7 +1,4 @@
-"""LLM Prompt 模板 — 工具链分割、经验提取、Task 摘要
-
-Design Doc §6.1.1, §5.7, §8.8
-"""
+"""Implementation details."""
 
 TASK_SUMMARY_PROMPT = """你是一个幻灯片编辑助手的记忆模块。请根据以下一轮对话的执行记录，生成结构化摘要。
 

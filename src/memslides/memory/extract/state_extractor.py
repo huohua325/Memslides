@@ -21,7 +21,7 @@ from typing import Literal
 
 @dataclass
 class ExtractionResult:
-    """参数提取结果"""
+    """Implementation details."""
 
     slide_id: str = ""
     slide_type: Literal["html", "pptx"] = "html"
@@ -39,11 +39,7 @@ class ExtractionResult:
         }
 
     def diff(self, other: ExtractionResult) -> dict:
-        """计算两个提取结果的差异
-
-        Returns:
-            {"param_name": {"before": val, "after": val, "delta": val}, ...}
-        """
+        """Implementation details."""
         diffs = {}
         all_params = set(list(self.params.keys()) + list(other.params.keys()))
         for param in sorted(all_params):
@@ -81,10 +77,7 @@ _NAMED_COLORS = {
 
 
 class PPTStateExtractor:
-    """幻灯片参数提取器
-
-    支持11个可量化参数（9个已实现，2个待补充）
-    """
+    """Implementation details."""
 
     SUPPORTED_PARAMS = {
         "background_brightness",
@@ -100,7 +93,7 @@ class PPTStateExtractor:
     PENDING_PARAMS = {"color_saturation", "color_contrast_ratio"}
 
     def extract_from_html(self, html_path: Path) -> ExtractionResult:
-        """从HTML幻灯片提取参数"""
+        """Implementation details."""
         from bs4 import BeautifulSoup
 
         html_content = html_path.read_text(encoding="utf-8")
@@ -198,23 +191,23 @@ class PPTStateExtractor:
         return result
 
     def extract_from_pptx(self, slide_page) -> ExtractionResult:
-        """从PPTX SlidePage对象提取参数（TemplatePlanner路径）"""
+        """Implementation details."""
         result = ExtractionResult(slide_type="pptx")
         # Placeholder — will be implemented when the new template analyzer pipeline is ready
         return result
 
     def extract(self, source, slide_type: str = "html") -> ExtractionResult:
-        """统一提取入口"""
+        """Implementation details."""
         if slide_type == "html":
             return self.extract_from_html(Path(source))
         elif slide_type == "pptx":
             return self.extract_from_pptx(source)
         raise ValueError(f"Unknown slide_type: {slide_type}")
 
-    # === 内部方法 ===
+
 
     def _extract_background_color(self, soup) -> str | None:
-        """提取背景色（CSS解析）"""
+        """Implementation details."""
         # Check inline style on .slide or body
         for selector in [".slide", "body"]:
             elem = soup.select_one(selector)
@@ -238,11 +231,7 @@ class PPTStateExtractor:
 
     @staticmethod
     def _color_to_brightness(color_str: str) -> float | None:
-        """颜色字符串转亮度(0-1)
-
-        支持: #RRGGBB, #RGB, rgb(r,g,b), rgba(r,g,b,a), 颜色名
-        使用相对亮度公式: L = 0.2126*R + 0.7152*G + 0.0722*B
-        """
+        """Implementation details."""
         color_str = color_str.strip().lower()
 
         # Named color
@@ -278,7 +267,7 @@ class PPTStateExtractor:
 
     @staticmethod
     def _color_to_hue(color_str: str) -> int | None:
-        """颜色字符串转色相(0-360)"""
+        """Implementation details."""
         color_str = color_str.strip().lower()
 
         r = g = b = None
@@ -309,7 +298,7 @@ class PPTStateExtractor:
         return round(h * 360)
 
     def _extract_font_sizes(self, soup) -> list[float]:
-        """提取所有字号"""
+        """Implementation details."""
         sizes = []
         for elem in soup.find_all(style=True):
             fs = self._parse_css_property(elem["style"], "font-size")
@@ -327,7 +316,7 @@ class PPTStateExtractor:
         return sizes
 
     def _extract_title_font_size(self, soup) -> float | None:
-        """提取标题字号（.title类或h1/h2或最大字号）"""
+        """Implementation details."""
         # Try .title class
         title_elem = soup.select_one(".title")
         if title_elem and title_elem.get("style"):
@@ -348,7 +337,7 @@ class PPTStateExtractor:
         return max(sizes) if sizes else None
 
     def _extract_dominant_color_hue(self, soup) -> int | None:
-        """提取主色调色相"""
+        """Implementation details."""
         colors = []
         # Collect all color mentions
         for elem in soup.find_all(style=True):
@@ -377,7 +366,7 @@ class PPTStateExtractor:
 
     @staticmethod
     def _parse_css_property(style_str: str, prop: str) -> str | None:
-        """从inline style中提取CSS属性值"""
+        """Implementation details."""
         pattern = re.compile(
             rf"(?:^|;)\s*{re.escape(prop)}\s*:\s*([^;]+)", re.IGNORECASE
         )
@@ -388,7 +377,7 @@ class PPTStateExtractor:
 
     @staticmethod
     def _parse_px_value(value: str) -> float | None:
-        """解析像素值（如 '24px', '1.5em', '16pt'）"""
+        """Implementation details."""
         match = re.match(r"([\d.]+)\s*(px|pt|em|rem|%)?", value.strip())
         if match:
             num = float(match.group(1))

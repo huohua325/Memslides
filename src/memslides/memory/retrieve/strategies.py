@@ -1,12 +1,4 @@
-"""
-检索策略层 — Vector / FTS5 / Hybrid RRF (Stage 2)
-
-基于 memory_upgrade_design_v2.md §3.4 + §6.2 定义。
-提供三个检索策略:
-  - VectorSearchStrategy: 向量相似度检索
-  - FTS5SearchStrategy: SQLite FTS5 全文检索
-  - HybridRetriever: 组合多策略 + RRF 融合排序
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -19,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════
-# 检索结果
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class RetrievalResult:
-    """统一检索结果"""
+    """Implementation details."""
     id: str
     content: Any = None
     score: float = 0.0
@@ -33,7 +25,7 @@ class RetrievalResult:
 
 
 # ═══════════════════════════════════════════════
-# 检索策略基接口
+
 # ═══════════════════════════════════════════════
 
 @runtime_checkable
@@ -49,7 +41,7 @@ class SearchStrategy(Protocol):
 # ═══════════════════════════════════════════════
 
 class VectorSearchStrategy:
-    """向量相似度检索 — 基于 NanoVectorDB"""
+    """Implementation details."""
 
     name = "vector"
 
@@ -80,7 +72,7 @@ class VectorSearchStrategy:
 # ═══════════════════════════════════════════════
 
 class FTS5SearchStrategy:
-    """SQLite FTS5 全文检索"""
+    """Implementation details."""
 
     name = "keyword"
 
@@ -116,7 +108,7 @@ class FTS5SearchStrategy:
 
 
 # ═══════════════════════════════════════════════
-# RRF 融合 — 共享实现
+
 # ═══════════════════════════════════════════════
 
 def rrf_merge(
@@ -124,16 +116,7 @@ def rrf_merge(
     top_k: int,
     rrf_k: int = 60,
 ) -> list[RetrievalResult]:
-    """Reciprocal Rank Fusion (RRF) 合并多路检索结果
-
-    RRF 公式: score(d) = Σ 1 / (k + rank_i + 1)
-    其中 rank_i 是文档 d 在第 i 路结果中的排名 (0-indexed)。
-
-    Args:
-        result_lists: 多路检索结果
-        top_k: 返回结果数
-        rrf_k: RRF 融合参数 (默认 60)
-    """
+    """Implementation details."""
     scores: dict[str, float] = defaultdict(float)
     items: dict[str, RetrievalResult] = {}
 
@@ -141,7 +124,7 @@ def rrf_merge(
         for rank, result in enumerate(results):
             rrf_score = 1.0 / (rrf_k + rank + 1)
             scores[result.id] += rrf_score
-            # 保留第一次出现的完整结果
+
             if result.id not in items:
                 items[result.id] = result
 
@@ -156,15 +139,11 @@ def rrf_merge(
 
 
 # ═══════════════════════════════════════════════
-# HybridRetriever — RRF 融合
+
 # ═══════════════════════════════════════════════
 
 class HybridRetriever:
-    """组合多个 SearchStrategy + RRF (Reciprocal Rank Fusion) 融合
-
-    RRF 公式: score(d) = Σ 1 / (k + rank_i + 1)
-    其中 rank_i 是文档 d 在第 i 路结果中的排名 (0-indexed)。
-    """
+    """Implementation details."""
 
     def __init__(
         self,
@@ -180,7 +159,7 @@ class HybridRetriever:
         user_id: str = "",
         top_k: int = 5,
     ) -> list[RetrievalResult]:
-        """多路检索 → RRF 合并 → 返回 top_k"""
+        """Implementation details."""
         if not self._strategies:
             return []
 
@@ -207,5 +186,5 @@ class HybridRetriever:
         result_lists: list[list[RetrievalResult]],
         top_k: int,
     ) -> list[RetrievalResult]:
-        """RRF 合并多路结果 — 委托给共享 rrf_merge()"""
+        """Implementation details."""
         return rrf_merge(result_lists, top_k, self._rrf_k)

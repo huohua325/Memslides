@@ -1,10 +1,10 @@
-"""Retrieval Prompts — 多查询生成"""
+"""Implementation details."""
 
 from __future__ import annotations
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 多查询生成 (检索时/可选)
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 MULTI_QUERY_PROMPT = """Given the user's design modification request and current search results,

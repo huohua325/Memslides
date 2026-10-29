@@ -1,8 +1,4 @@
-"""Stage 12: 执行数据库迁移脚本
-
-Usage:
-    python -m memslides.memory.migrations.run_migration
-"""
+"""Implementation details."""
 import asyncio
 import logging
 from pathlib import Path
@@ -13,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 async def run_migration(db_path: str = ".memory/memory.db"):
-    """执行 Stage 12 迁移：添加链级扩展字段 + 偏好来源追踪字段"""
+    """Implementation details."""
     db = DatabaseBackend(db_path)
     await db.connect()
 

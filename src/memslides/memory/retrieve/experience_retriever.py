@@ -1,12 +1,4 @@
-"""ExperienceTraceRetriever — ChromaDB + BM25 混合检索 ExperienceTrace
-
-学习 ProceduralRuleRetriever 的设计:
-- 写入时双路索引 (ChromaDB + BM25)
-- 检索时并行查询 + RRF 融合
-- 支持 search_method: "hybrid" | "vector" | "bm25"
-
-索引字段: task_description + lessons_learned
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -40,15 +32,7 @@ except ImportError:
 
 
 class ExperienceTraceRetriever:
-    """ExperienceTrace 混合检索器 — ChromaDB + BM25 + RRF
-
-    学习 ProceduralRuleRetriever 架构:
-    - 写入时双路索引
-    - 检索时并行 + RRF 融合
-    - 空库优雅处理
-
-    索引文档格式: "{task_description}\n{lessons_learned}"
-    """
+    """Implementation details."""
 
     _COLLECTION_NAME = "dp_experience_traces"
     _BM25_DATA_FILENAME = "experience_bm25_data.json"
@@ -60,13 +44,7 @@ class ExperienceTraceRetriever:
         persist_dir: str,
         rrf_k: int = 60,
     ):
-        """
-        Args:
-            db: AsyncDatabase 实例 (用于获取完整 trace)
-            embedding_func: async (list[str]) -> np.ndarray
-            persist_dir: 持久化目录
-            rrf_k: RRF 融合参数 (默认 60)
-        """
+        """Implementation details."""
         self._db = db
         self._embed = embedding_func
         self._persist_dir = persist_dir
@@ -111,7 +89,7 @@ class ExperienceTraceRetriever:
         self._bm25_corpus_tokens.clear()
 
     # ═══════════════════════════════════════════════
-    # 写入接口
+
     # ═══════════════════════════════════════════════
 
     async def add_trace(
@@ -121,20 +99,10 @@ class ExperienceTraceRetriever:
         lessons_learned: str,
         metadata: Dict[str, Any],
     ) -> bool:
-        """双路写入 (ChromaDB + BM25)
-
-        Args:
-            trace_id: ExperienceTrace.id
-            task_description: 任务描述
-            lessons_learned: 学到的经验
-            metadata: 元数据 (session_id, outcome, confidence, applicable_scenarios)
-
-        Returns:
-            True=新写入, False=已存在或失败
-        """
+        """Implementation details."""
         document = self._format_document(task_description, lessons_learned)
 
-        # 1. ChromaDB 写入
+
         chroma_added = False
         collection = self._collection
         if collection is not None:
@@ -159,17 +127,17 @@ class ExperienceTraceRetriever:
             except Exception as e:
                 logger.warning("ChromaDB write failed: %s", e)
 
-        # 2. BM25 写入
+
         bm25_added = self._add_to_bm25(trace_id, document, metadata)
 
         return chroma_added or bm25_added
 
     def _add_to_bm25(self, trace_id: str, document: str, metadata: Dict) -> bool:
-        """BM25 增量写入"""
+        """Implementation details."""
         if not BM25S_AVAILABLE or self._tokenizer is None:
             return False
 
-        # 去重检查
+
         for existing in self._bm25_data:
             if existing.get("id") == trace_id:
                 return False
@@ -185,17 +153,17 @@ class ExperienceTraceRetriever:
         })
         self._bm25_corpus_tokens.append(tokens)
 
-        # 重建 BM25 索引
+
         self._bm25_retriever = bm25s.BM25(method="lucene")
         self._bm25_retriever.index(self._bm25_corpus_tokens)
 
-        # 持久化
+
         self._save_bm25_index()
         logger.debug("BM25: added trace %s", trace_id[:8])
         return True
 
     # ═══════════════════════════════════════════════
-    # 检索接口
+
     # ═══════════════════════════════════════════════
 
     async def search(
@@ -205,17 +173,7 @@ class ExperienceTraceRetriever:
         top_k: int = 5,
         method: str = "hybrid",
     ) -> List[RetrievalResult]:
-        """混合检索 ExperienceTrace
-
-        Args:
-            query: 用户查询 (通常是用户任务描述)
-            user_id: 用户 ID (暂未使用，预留)
-            top_k: 返回结果数
-            method: "hybrid" | "vector" | "bm25"
-
-        Returns:
-            List[RetrievalResult]
-        """
+        """Implementation details."""
         if method == "vector":
             return await self._vector_search(query, top_k)
         elif method == "bm25":
@@ -226,7 +184,7 @@ class ExperienceTraceRetriever:
     async def _hybrid_search(
         self, query: str, top_k: int,
     ) -> List[RetrievalResult]:
-        """并行 ChromaDB + BM25 → RRF 融合"""
+        """Implementation details."""
         tasks = []
         tasks.append(self._vector_search(query, top_k * 2))
         tasks.append(self._bm25_search(query, top_k * 2))
@@ -248,7 +206,7 @@ class ExperienceTraceRetriever:
     async def _vector_search(
         self, query: str, top_k: int,
     ) -> List[RetrievalResult]:
-        """ChromaDB 向量检索"""
+        """Implementation details."""
         collection = self._collection
         if collection is None:
             return []
@@ -288,7 +246,7 @@ class ExperienceTraceRetriever:
     async def _bm25_search(
         self, query: str, top_k: int,
     ) -> List[RetrievalResult]:
-        """BM25 关键词检索"""
+        """Implementation details."""
         if not BM25S_AVAILABLE or self._bm25_retriever is None or not self._bm25_data:
             return []
 
@@ -327,20 +285,20 @@ class ExperienceTraceRetriever:
         result_lists: List[List[RetrievalResult]],
         top_k: int,
     ) -> List[RetrievalResult]:
-        """RRF 融合 — 委托给共享 rrf_merge()"""
+        """Implementation details."""
         return rrf_merge(result_lists, top_k, self._rrf_k)
 
     # ═══════════════════════════════════════════════
-    # 辅助方法
+
     # ═══════════════════════════════════════════════
 
     @staticmethod
     def _format_document(task_description: str, lessons_learned: str) -> str:
-        """格式化 Trace 为检索文档"""
+        """Implementation details."""
         return f"{task_description}\n{lessons_learned}"
 
     def _load_bm25_index(self):
-        """从磁盘加载 BM25 索引"""
+        """Implementation details."""
         if not BM25S_AVAILABLE or not self._persist_dir:
             return
 
@@ -366,7 +324,7 @@ class ExperienceTraceRetriever:
             logger.warning("Failed to load BM25 index: %s", e)
 
     def _save_bm25_index(self):
-        """持久化 BM25 索引"""
+        """Implementation details."""
         if not self._persist_dir:
             return
 
@@ -381,12 +339,7 @@ class ExperienceTraceRetriever:
             logger.warning("Failed to save BM25 index: %s", e)
 
     async def rebuild_index(self):
-        """从数据库重建全部索引
-
-        用于初始化或索引损坏时修复。
-        使用批量操作避免 O(n²) 逐条重建，并通过 asyncio.to_thread
-        将同步阻塞操作移出 event loop，防止阻塞 UI。
-        """
+        """Implementation details."""
         if not self._db:
             return
 

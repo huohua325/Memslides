@@ -46,6 +46,19 @@ docker compose run --rm memslides python -m memslides.experiment run smoke_minim
 
 Compose stores experiment state and outputs under `./.memslides`.
 
+## Repository Layout
+
+The image runs the same public experiment entry point as the source checkout:
+
+- `src/memslides/`: runtime package, memory system, and MCP tools.
+- `src/memslides/experiment/`: paper reproduction experiments and reports.
+- `tests/`: automated checks used by CI.
+- `.memslides/` and `/app/.cache/memslides`: ignored generated state and caches.
+
+The old generated tool snapshot and unused internal template-selection modules
+are not shipped. Configure tools through the packaged MCP configuration and
+run experiments through `python -m memslides.experiment`.
+
 ## Configuration
 
 MemSlides expects user-provided model and service credentials for real

@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 
 @runtime_checkable
 class DatabaseBackend(Protocol):
-    """数据库后端协议"""
+    """Implementation details."""
 
     async def connect(self) -> None:
-        """建立连接"""
+        """Implementation details."""
         ...
 
     async def close(self) -> None:
-        """关闭连接"""
+        """Implementation details."""
         ...
 
     async def execute(
@@ -36,43 +36,40 @@ class DatabaseBackend(Protocol):
         params: tuple | dict = (),
         auto_commit: bool = True,
     ) -> int:
-        """执行SQL，返回affected rows"""
+        """Implementation details."""
         ...
 
     async def execute_many(self, sql: str, params_list: list[tuple | dict]) -> None:
-        """批量执行SQL"""
+        """Implementation details."""
         ...
 
     async def query(self, sql: str, params: tuple | dict = ()) -> list[dict]:
-        """查询，返回字典列表"""
+        """Implementation details."""
         ...
 
     async def query_one(self, sql: str, params: tuple | dict = ()) -> dict | None:
-        """查询单条记录"""
+        """Implementation details."""
         ...
 
     async def insert(self, table: str, data: dict) -> str:
-        """插入记录，返回ID"""
+        """Implementation details."""
         ...
 
     async def update(self, table: str, data: dict, where: dict) -> int:
-        """更新记录，返回affected rows"""
+        """Implementation details."""
         ...
 
     async def delete(self, table: str, where: dict) -> int:
-        """删除记录，返回affected rows"""
+        """Implementation details."""
         ...
 
     async def init_schema(self) -> None:
-        """初始化数据库Schema"""
+        """Implementation details."""
         ...
 
 
 class SQLiteBackend:
-    """SQLite异步数据库后端
-
-    Stage 4 改进：添加连接健康检查和自动重连机制
-    """
+    """Implementation details."""
 
     def __init__(self, db_path: str | Path):
         self.db_path = Path(db_path)
@@ -80,24 +77,20 @@ class SQLiteBackend:
         self._is_healthy = False
 
     async def connect(self) -> None:
-        """建立连接 + 启用DELETE日志模式 + 启用外键
-
-        Stage 4: 改用 DELETE 模式替代 WAL 模式
-        原因：WAL 模式在并发访问时可能导致 "malformed" 错误
-        """
+        """Implementation details."""
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = await aiosqlite.connect(str(self.db_path))
         self._conn.row_factory = aiosqlite.Row
-        # 使用 DELETE 模式替代 WAL，避免并发问题
+
         await self._conn.execute("PRAGMA journal_mode=DELETE")
-        await self._conn.execute("PRAGMA busy_timeout=10000")  # 增加超时
+        await self._conn.execute("PRAGMA busy_timeout=10000")
         await self._conn.execute("PRAGMA foreign_keys=ON")
-        await self._conn.execute("PRAGMA synchronous=NORMAL")  # 平衡性能和安全
+        await self._conn.execute("PRAGMA synchronous=NORMAL")
         self._is_healthy = True
         logger.info("SQLiteBackend connected (DELETE mode): %s", self.db_path)
 
     async def close(self) -> None:
-        """关闭连接"""
+        """Implementation details."""
         if self._conn:
             try:
                 await self._conn.close()
@@ -108,14 +101,11 @@ class SQLiteBackend:
             logger.info("SQLiteBackend closed: %s", self.db_path)
 
     async def _check_and_reconnect(self) -> aiosqlite.Connection:
-        """检查连接健康状态，必要时重连
-
-        Stage 4: 解决长时间 LLM 调用后连接失效问题
-        """
+        """Implementation details."""
         if self._conn is None:
             raise RuntimeError("Database not connected. Call connect() first.")
 
-        # 快速健康检查
+
         try:
             await self._conn.execute("SELECT 1")
             return self._conn
@@ -123,7 +113,7 @@ class SQLiteBackend:
             logger.warning("Database connection unhealthy, reconnecting: %s", e)
             self._is_healthy = False
 
-        # 尝试重连
+
         try:
             if self._conn:
                 try:
@@ -145,7 +135,7 @@ class SQLiteBackend:
             raise
 
     def _ensure_connected(self) -> aiosqlite.Connection:
-        """同步检查连接（用于简单操作）"""
+        """Implementation details."""
         if self._conn is None:
             raise RuntimeError("Database not connected. Call connect() first.")
         return self._conn
@@ -156,16 +146,7 @@ class SQLiteBackend:
         params: tuple | dict = (),
         auto_commit: bool = True,
     ) -> int:
-        """执行SQL
-
-        Args:
-            sql: SQL语句
-            params: 参数
-            auto_commit: 是否自动提交，批量操作时可设为False
-
-        Returns:
-            affected rows（非DML语句返回0）
-        """
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         cursor = await conn.execute(sql, params)
         if auto_commit:
@@ -174,32 +155,32 @@ class SQLiteBackend:
         return rowcount if isinstance(rowcount, int) and rowcount >= 0 else 0
 
     async def commit(self) -> None:
-        """手动提交事务"""
+        """Implementation details."""
         conn = self._ensure_connected()
         await conn.commit()
 
     async def execute_many(self, sql: str, params_list: list[tuple | dict]) -> None:
-        """批量执行SQL"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         await conn.executemany(sql, params_list)
         await conn.commit()
 
     async def query(self, sql: str, params: tuple | dict = ()) -> list[dict]:
-        """查询，返回字典列表"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         cursor = await conn.execute(sql, params)
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
 
     async def query_one(self, sql: str, params: tuple | dict = ()) -> dict | None:
-        """查询单条记录"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         cursor = await conn.execute(sql, params)
         row = await cursor.fetchone()
         return dict(row) if row else None
 
     async def insert(self, table: str, data: dict) -> str:
-        """通用插入：自动从dict生成INSERT语句，返回ID"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
@@ -209,7 +190,7 @@ class SQLiteBackend:
         return data.get("id", "")
 
     async def update(self, table: str, data: dict, where: dict) -> int:
-        """通用更新：自动生成UPDATE ... WHERE语句，返回affected rows"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         set_clause = ", ".join(f"{k} = ?" for k in data.keys())
         where_clause = " AND ".join(f"{k} = ?" for k in where.keys())
@@ -220,7 +201,7 @@ class SQLiteBackend:
         return cursor.rowcount
 
     async def delete(self, table: str, where: dict) -> int:
-        """通用删除，返回affected rows"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         where_clause = " AND ".join(f"{k} = ?" for k in where.keys())
         sql = f"DELETE FROM {table} WHERE {where_clause}"
@@ -229,7 +210,7 @@ class SQLiteBackend:
         return cursor.rowcount
 
     async def init_schema(self) -> None:
-        """从 schema.sql 初始化全部表结构（sessions, experience_traces, design_episodes, atomic_preferences 等）"""
+        """Implementation details."""
         conn = await self._check_and_reconnect()
         # Old global DBs may have an existing experience_traces table without the
         # Stage 15 columns. schema.sql now creates indexes on those new columns,
@@ -245,7 +226,7 @@ class SQLiteBackend:
         await conn.commit()
 
     async def _ensure_stage15_experience_trace_schema(self, conn: aiosqlite.Connection) -> None:
-        """为已有 DB 追加 Stage 15 所需列与索引。"""
+        """Implementation details."""
         cursor = await conn.execute("PRAGMA table_info(experience_traces)")
         rows = await cursor.fetchall()
         existing_columns = {row[1] for row in rows}
@@ -280,12 +261,12 @@ class SQLiteBackend:
         )
 
     async def _ensure_chain_store_schema(self, conn: aiosqlite.Connection) -> None:
-        """为 chain_raw_data / chain_experiences 修补旧版 schema。"""
+        """Implementation details."""
         await self._ensure_chain_raw_data_schema(conn)
         await self._ensure_chain_experience_schema(conn)
 
     async def _ensure_chain_raw_data_schema(self, conn: aiosqlite.Connection) -> None:
-        """为旧版 chain_raw_data 增补缺失列与索引。"""
+        """Implementation details."""
         cursor = await conn.execute("PRAGMA table_info(chain_raw_data)")
         rows = await cursor.fetchall()
         existing_columns = {row[1] for row in rows}
@@ -307,14 +288,14 @@ class SQLiteBackend:
         )
 
     async def _ensure_chain_experience_schema(self, conn: aiosqlite.Connection) -> None:
-        """将旧版单槽位 chain_experiences 迁移为多变体结构。"""
+        """Implementation details."""
         cursor = await conn.execute("PRAGMA table_info(chain_experiences)")
         rows = await cursor.fetchall()
         existing_columns = {row[1]: row for row in rows}
         if not existing_columns:
             return
 
-        # 旧版全局库曾把 chain_signature 设为 PRIMARY KEY，这会堵死 append。
+
         needs_recreate = (
             "id" not in existing_columns
             or "chain_signature" not in existing_columns
@@ -485,7 +466,7 @@ class SQLiteBackend:
 
     @asynccontextmanager
     async def transaction(self):
-        """事务上下文管理器"""
+        """Implementation details."""
         conn = self._ensure_connected()
         await conn.execute("BEGIN")
         try:

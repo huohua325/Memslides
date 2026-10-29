@@ -1,15 +1,4 @@
-"""
-DesignPlanGenerator — 确定性 design_plan.md 生成器
-
-从 TemplateProfile 数据生成 design_plan.md，无 LLM，纯代码拼装。
-此模块是模板驱动 PPT 生成功能的一部分，与 TemplateGuideBuilder 配合使用。
-
-设计原则：
-- 按数据可用性动态生成章节（空字段跳过）
-- 生成可直接复制的 CSS 变量块
-- 从 slide_induction 提取每个布局的元素规格
-- 所有内容来自 TemplateProfile 数据，零 LLM 创意
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -44,16 +33,7 @@ def _classify_layout_type(
     elements: list[dict],
     functional_keys: list[str],
 ) -> str:
-    """统一的布局类型分类逻辑
-
-    Args:
-        key: 布局名称
-        elements: 布局元素列表
-        functional_keys: 功能页键列表
-
-    Returns:
-        布局类型标签: "功能页" | "图文" | "纯文本"
-    """
+    """Implementation details."""
     if key in functional_keys or key.lower() in [fk.lower() for fk in functional_keys]:
         return "功能页"
     elif key.endswith(":image"):
@@ -66,7 +46,7 @@ def _classify_layout_type(
 
 
 class DesignPlanGenerator:
-    """确定性 design_plan.md 生成器"""
+    """Implementation details."""
 
     def __init__(self, profile: "TemplateProfile", mode: str = "structural_template"):
         self.profile = profile
@@ -85,14 +65,7 @@ class DesignPlanGenerator:
         return self.mode in {STRUCTURAL_TEMPLATE, STRICT_STRUCTURAL_TEMPLATE}
 
     def generate(self, output_path: Path) -> Path:
-        """生成 design_plan.md
-
-        Args:
-            output_path: 输出文件路径
-
-        Returns:
-            写入的文件路径
-        """
+        """Implementation details."""
         from ..core.template_models import (
             ColorPalette, ContentPatterns,
             DesignConstraints, Typography,
@@ -105,7 +78,7 @@ class DesignPlanGenerator:
         cp_patterns = self.profile.content_patterns or ContentPatterns()
         semantic_style = semantic_style_system(self.profile)
 
-        # 收集各章节，空章节不输出
+
         section_builders = [
             ("header",      lambda: self._header()),
             ("css_vars",    lambda: self._css_variables(cp, tp, spacing)),
@@ -130,7 +103,7 @@ class DesignPlanGenerator:
 
         content = "\n\n".join(all_sections) + "\n"
 
-        # 写入文件
+
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(content, encoding="utf-8")
@@ -139,10 +112,10 @@ class DesignPlanGenerator:
                      f"sections={included_sections}) -> {output_path}")
         return output_path
 
-    # ── 各章节构建器 ──
+
 
     def _header(self) -> str:
-        """标题 + 元信息"""
+        """Implementation details."""
         lines = [
             f"# Design Plan — {self.profile.name}",
             "",
@@ -169,7 +142,7 @@ class DesignPlanGenerator:
         return "\n".join(lines)
 
     def _css_variables(self, cp: "ColorPalette", tp: "Typography", spacing: dict) -> str:
-        """生成可直接复制到 <style> 的 CSS 变量块"""
+        """Implementation details."""
         has_colors = any([
             cp.primary,
             cp.secondary,
@@ -239,7 +212,7 @@ class DesignPlanGenerator:
         return "\n".join(lines)
 
     def _color_table(self, cp: "ColorPalette") -> str:
-        """配色方案表格（仅在有颜色数据时生成）"""
+        """Implementation details."""
         rows = []
         if cp.primary:
             rows.append(f"| 标题/重点 primary | `{cp.primary}` | h1, h2, 强调文字 |")
@@ -277,7 +250,7 @@ class DesignPlanGenerator:
         return "\n".join(lines)
 
     def _typography(self, tp: "Typography") -> str:
-        """字体规范（仅在有字体数据时生成）"""
+        """Implementation details."""
         if not tp.title_font and not tp.body_font:
             return ""
         lines = ["## 字体规范", ""]
@@ -297,7 +270,7 @@ class DesignPlanGenerator:
         return "\n".join(lines)
 
     def _spacing(self, spacing: dict) -> str:
-        """间距规范（仅在有间距数据时生成）"""
+        """Implementation details."""
         items = []
         if spacing.get("margin"):
             items.append(f"- **页边距**: {spacing['margin']}")
@@ -310,7 +283,7 @@ class DesignPlanGenerator:
         return "\n".join(["## 间距规范", ""] + items)
 
     def _content_style(self, cp: "ContentPatterns") -> str:
-        """内容风格（仅在有非默认数据时生成）"""
+        """Implementation details."""
         items = []
         density_map = {
             "low": "精简 — 每页 2-3 要点",
@@ -335,7 +308,7 @@ class DesignPlanGenerator:
         return "\n".join(["## 内容风格", ""] + items)
 
     def _layouts(self) -> str:
-        """布局 contract：只输出 canonical layout 语义"""
+        """Implementation details."""
         layouts = canonical_layout_views(self.profile)
         if not layouts:
             return ""
@@ -425,7 +398,7 @@ class DesignPlanGenerator:
         return "\n".join(lines)
 
     def _decorative(self) -> str:
-        """装饰图片（仅在有装饰图时生成）"""
+        """Implementation details."""
         decorative = semantic_decorative_system(self.profile)
         if not decorative:
             return ""
@@ -485,7 +458,7 @@ class DesignPlanGenerator:
         return "\n".join(lines)
 
     def _rules(self, cp: "ColorPalette", tp: "Typography") -> str:
-        """关键规则（根据数据可用性动态调整）"""
+        """Implementation details."""
         rules = []
         has_colors = any([
             cp.primary,

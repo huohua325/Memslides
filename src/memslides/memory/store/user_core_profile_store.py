@@ -1,4 +1,4 @@
-"""UserCoreProfileStore — 稳定 persona / 跨 intent 核心画像存储。"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class UserCoreProfileStore:
-    """按 user_id 读写稳定 persona 与跨 intent 画像。"""
+    """Implementation details."""
 
     def __init__(self, db: DatabaseBackend):
         self._db = db

@@ -1,12 +1,4 @@
-"""
-TemplateExtractors — 模板提取器合集
-
-合并自:
-- StyleExtractor (颜色/字体/间距)
-- ContentPatternExtractor (标题/正文/图表模式)
-
-两个提取器共享同一输入 (slides_html)，在 main.py 中总是一起调用。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -160,10 +152,7 @@ def _color_to_hex(color: Any) -> str:
 
 
 class StyleExtractor:
-    """从 PPTX 直接提取设计约束（颜色、字体、间距）
-
-    优先从 PPTX 原始数据提取（稳定、精确），HTML 作为补充来源。
-    """
+    """Implementation details."""
 
     async def extract(
         self,
@@ -172,7 +161,7 @@ class StyleExtractor:
     ) -> DesignConstraints:
         constraints = DesignConstraints()
 
-        # ── 1. 颜色：HTML + PPTX 联合提取 ──
+
         colors = self._extract_colors_from_html(slides_html)
         if colors:
             constraints.color_palette = colors
@@ -216,12 +205,12 @@ class StyleExtractor:
                 constraints.color_palette.background = bg_color
             constraints.color_palette = self._finalize_palette_roles(constraints.color_palette)
 
-        # ── 2. 字体 & 字号：优先 PPTX，HTML 补充 ──
+
         if pptx_path:
             typography = self._extract_typography_from_pptx(pptx_path)
         else:
             typography = Typography()
-        # HTML 补充：如果 PPTX 没有提取到某些字段
+
         html_typography = self._extract_fonts_from_html(slides_html)
         if not typography.title_font and html_typography.title_font:
             typography.title_font = html_typography.title_font
@@ -233,7 +222,7 @@ class StyleExtractor:
             typography.body_size = html_typography.body_size
         constraints.typography = typography
 
-        # ── 3. 间距：优先 PPTX，HTML 补充 ──
+
         if pptx_path:
             spacing = self._extract_spacing_from_pptx(pptx_path)
         else:
@@ -245,10 +234,10 @@ class StyleExtractor:
 
         return constraints
 
-    # ── PPTX 直接提取方法 ──
+
 
     def _extract_typography_from_pptx(self, pptx_path: str) -> Typography:
-        """从 PPTX 直接读取字体和字号（稳定、精确）"""
+        """Implementation details."""
         typography = Typography()
         try:
             from pptx import Presentation
@@ -277,12 +266,12 @@ class StyleExtractor:
                             if not run.text.strip() and source == "slide":
                                 continue
                             saw_run = True
-                            # 字号（Emu → pt）
+
                             font_size = run.font.size
                             size_pt = font_size / Pt(1) if font_size else None
                             effective_title = _is_title_shape(shape, source=source, size_pt=size_pt)
 
-                            # 字体名
+
                             font_name = run.font.name
                             if font_name:
                                 if effective_title:
@@ -308,7 +297,7 @@ class StyleExtractor:
                 if not saw_run:
                     continue
 
-            # 如果占位符分类没有区分出标题/正文，用字号阈值分组
+
             if not title_sizes and not body_sizes:
                 all_sizes = title_sizes + body_sizes
                 if all_sizes:
@@ -342,7 +331,7 @@ class StyleExtractor:
         return typography
 
     def _extract_spacing_from_pptx(self, pptx_path: str) -> dict:
-        """从 PPTX 直接读取间距信息"""
+        """Implementation details."""
         spacing = {}
         try:
             from pptx import Presentation
@@ -356,13 +345,13 @@ class StyleExtractor:
                 if _is_ignored_placeholder(shape):
                     continue
                 tf = shape.text_frame
-                # 内边距（text frame margin）
+
                 for attr in ('margin_left', 'margin_right', 'margin_top', 'margin_bottom'):
                     val = getattr(tf, attr, None)
                     if val is not None and val > 0:
                         paddings.append(round(val / 12700, 1))  # Emu to pt
 
-                # 段落间距
+
                 for para in tf.paragraphs:
                     pf = getattr(para, 'paragraph_format', None)
                     if pf is None:
@@ -388,9 +377,9 @@ class StyleExtractor:
 
         return spacing
 
-    # ── 颜色提取（HTML + PPTX 混合）──
 
-    # 颜色归一化：统一为 #rrggbb 小写
+
+
     @staticmethod
     def _normalize_color(raw: str) -> str:
         raw = raw.strip()
@@ -404,7 +393,7 @@ class StyleExtractor:
             return f"#{raw[1]*2}{raw[2]*2}{raw[3]*2}"
         return raw
 
-    # 不参与语义分类的安全/中性颜色
+
     _NEUTRAL_COLORS = {
         "#ffffff", "#000000", "#fff", "#000",
         "transparent", "inherit", "initial", "currentcolor",
@@ -460,17 +449,11 @@ class StyleExtractor:
         return palette
 
     def _extract_colors_from_html(self, slides_html: list[str]) -> ColorPalette:
-        """按 CSS 属性语义分桶提取颜色，再按频率分配角色。
-
-        桶:
-          background — background-color / background 属性中的颜色
-          text       — color 属性（非 background 上下文）中的颜色
-          other      — border / 其他属性中的颜色
-        """
+        """Implementation details."""
         palette = ColorPalette()
 
-        # 正则：捕获 (CSS属性名, 颜色值)
-        # 匹配 inline style 和 <style> 块中的颜色声明
+
+
         prop_color_re = re.compile(
             r'(background(?:-color)?|(?<!-)color|border(?:-color)?)'
             r'\s*:\s*'
@@ -513,7 +496,7 @@ class StyleExtractor:
         if border_colors:
             palette.border = Counter(border_colors).most_common(1)[0][0]
 
-        # 合并所有非中性颜色，排除已分配的 background/text，按频率分配 primary/secondary/accent
+
         all_semantic = bg_colors + text_colors + other_colors
         assigned = {palette.background, palette.text, palette.surface, palette.border} - {""}
         remaining = [c for c in all_semantic if c not in assigned]
@@ -657,7 +640,7 @@ class StyleExtractor:
         return self._finalize_palette_roles(palette)
 
     async def _extract_background_color(self, pptx_path: str) -> Optional[str]:
-        """从 PPTX 提取背景色（支持 solid fill、gradient 首色、theme color）"""
+        """Implementation details."""
         try:
             from pptx import Presentation
             prs = Presentation(str(pptx_path))
@@ -666,7 +649,7 @@ class StyleExtractor:
                 bg = slide.background
                 fill = bg.fill
 
-                # 尝试多种 fill 类型
+
                 try:
                     fill_type = fill.type
                 except Exception:
@@ -681,11 +664,11 @@ class StyleExtractor:
                     except Exception:
                         pass
 
-                # 尝试从 XML 直接提取背景色
+
                 try:
                     from lxml import etree
                     bg_xml = bg._element
-                    # 查找 solidFill / gradFill 中的 srgbClr
+
                     ns = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
                     for srgb in bg_xml.iter('{http://schemas.openxmlformats.org/drawingml/2006/main}srgbClr'):
                         val = srgb.get('val')
@@ -699,12 +682,12 @@ class StyleExtractor:
             logger.debug(f"Failed to extract background color: {e}")
             return None
 
-    # ── HTML fallback 方法（当 PPTX 不可用时）──
+
 
     def _extract_fonts_from_html(self, slides_html: list[str]) -> Typography:
         typography = Typography()
 
-        # 按 HTML 标签语义分组提取 font-family
+
         title_tag_re = re.compile(
             r'<(h[1-3])\b[^>]*style\s*=\s*["\'][^"\']*font-family:\s*["\']?([^"\';]+)',
             re.IGNORECASE,
@@ -735,7 +718,7 @@ class StyleExtractor:
             title_sizes.extend(int(s) for s in title_size_re.findall(html))
             body_sizes.extend(int(s) for s in body_size_re.findall(html))
 
-        # 如果语义标签没有匹配到字体，fallback 到全局频率
+
         if not title_fonts and not body_fonts:
             font_pattern = r'font-family:\s*["\']?([^"\';]+)'
             all_fonts = []
@@ -760,7 +743,7 @@ class StyleExtractor:
             body_sizes.sort()
             typography.body_size = body_sizes[len(body_sizes) // 2]
 
-        # fallback: 全局统计
+
         if not title_sizes and not body_sizes:
             size_pattern = r'font-size:\s*(\d+)'
             all_sizes = []
@@ -798,10 +781,7 @@ class StyleExtractor:
 
 
 class ContentPatternExtractor:
-    """从 HTML 和布局中提取内容模式（叙述风格、信息密度、列表风格等）
-
-    LLM 语义分析是核心路径，必须成功才能填充 narrative_style/typical_sections/bullet_style。
-    """
+    """Implementation details."""
 
     def __init__(self, llm: Optional[Any] = None):
         self.llm = llm
@@ -815,12 +795,12 @@ class ContentPatternExtractor:
     ) -> ContentPatterns:
         patterns = ContentPatterns()
 
-        # 规则提取：信息密度（基于文本量和元素数）
+
         info_density = self._estimate_info_density(slides_html, layout_induction)
         if info_density:
             patterns.info_density = info_density
 
-        # LLM 语义分析：narrative_style, typical_sections, bullet_style
+
         if self.llm:
             semantic_patterns = await self._semantic_analysis(
                 slides_html, slides_text, pptx_filename
@@ -837,15 +817,18 @@ class ContentPatternExtractor:
                 if semantic_patterns.max_bullets_per_slide != 5:
                     patterns.max_bullets_per_slide = semantic_patterns.max_bullets_per_slide
         else:
-            logger.warning("[TEMPLATE] ContentPatternExtractor: LLM 不可用，narrative_style/typical_sections/bullet_style 将为空")
+            logger.warning(
+                "[TEMPLATE] ContentPatternExtractor: LLM is unavailable; "
+                "narrative_style, typical_sections, and bullet_style will be empty"
+            )
 
         return patterns
 
     def _estimate_info_density(self, slides_html: list[str], layout_induction: dict) -> str:
-        """规则估算信息密度"""
+        """Implementation details."""
         if not slides_html:
             return "medium"
-        # 平均每页文本量
+
         total_text_len = sum(len(re.sub(r'<[^>]+>', '', html)) for html in slides_html)
         avg_text = total_text_len / max(len(slides_html), 1)
         if avg_text > 500:
@@ -860,35 +843,35 @@ class ContentPatternExtractor:
         slides_text: list[list[str]],
         pptx_filename: str,
     ) -> Optional[ContentPatterns]:
-        """使用 LLM 进行语义分析。"""
+        """Implementation details."""
         if not self.llm:
             return None
 
         llm_callable = await self._get_llm_callable()
         if not llm_callable:
-            logger.warning("[TEMPLATE] ContentPatternExtractor: LLM 不可调用，跳过语义分析")
+            logger.warning("[TEMPLATE] ContentPatternExtractor: LLM is not callable; skipping semantic analysis")
             return None
 
-        # 构建摘要输入（避免 token 过多）
+
         text_summary = ""
         for i, texts in enumerate(slides_text[:8]):
             page_text = " ".join(texts) if isinstance(texts, list) else str(texts)
             text_summary += f"Slide {i+1}: {page_text[:300]}\n"
 
-        prompt = f"""分析以下 PPT 模板的内容模式。
+        prompt = f"""Analyze the content patterns in the following PowerPoint template.
 
-文件名：{pptx_filename}
-幻灯片数量：{len(slides_html)}
+Filename: {pptx_filename}
+Slide count: {len(slides_html)}
 
-各页内容摘要：
+Slide content summaries:
 {text_summary}
 
-请严格以 JSON 格式输出分析结果（不要添加任何其他文字）：
+Return the result strictly as JSON without any additional text:
 {{
-  "narrative_style": "叙述风格，必须是以下之一：academic/business/technical/educational/creative",
-  "info_density": "信息密度，必须是以下之一：high/medium/low",
-  "bullet_style": "列表风格，必须是以下之一：numbered/bulleted/icon/mixed/none",
-  "typical_sections": ["典型章节名称列表，如：opening, table_of_contents, content, ending"],
+  "narrative_style": "One of: academic/business/technical/educational/creative",
+  "info_density": "One of: high/medium/low",
+  "bullet_style": "One of: numbered/bulleted/icon/mixed/none",
+  "typical_sections": ["Section names such as opening, table_of_contents, content, ending"],
   "max_bullets_per_slide": 5
 }}
 """
@@ -899,16 +882,16 @@ class ContentPatternExtractor:
                 if not response:
                     raise ValueError("LLM returned empty response")
 
-                # 解析响应为 dict
+
                 import json as _json
                 if isinstance(response, dict):
-                    # return_json=True 已经返回了 dict
+
                     data = response
                 elif isinstance(response, str):
                     text = response.strip()
-                    # 移除 <think>...</think> 块
+
                     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-                    # 提取 JSON
+
                     if "```json" in text:
                         start = text.find("```json") + 7
                         end = text.rfind("```")
@@ -929,7 +912,7 @@ class ContentPatternExtractor:
                 result.max_bullets_per_slide = int(data.get("max_bullets_per_slide", 5))
 
                 logger.info(
-                    f"[TEMPLATE] ContentPatterns LLM 分析成功: "
+                    f"[TEMPLATE] ContentPatterns LLM analysis succeeded: "
                     f"narrative={result.narrative_style}, density={result.info_density}, "
                     f"bullet={result.bullet_style}, sections={result.typical_sections}"
                 )
@@ -937,22 +920,18 @@ class ContentPatternExtractor:
 
             except Exception as e:
                 last_error = e
-                logger.warning(f"[TEMPLATE] ContentPatterns LLM 分析 attempt {attempt+1}/3 失败: {e}")
+                logger.warning(f"[TEMPLATE] ContentPatterns LLM analysis attempt {attempt+1}/3 failed: {e}")
 
-        logger.error(f"[TEMPLATE] ContentPatterns LLM 分析全部失败: {last_error}")
+        logger.error(f"[TEMPLATE] ContentPatterns LLM analysis failed after all attempts: {last_error}")
         return None
 
     async def _get_llm_callable(self):
-        """获取可调用的 LLM 函数
-
-        返回的 callable 可能返回 dict（return_json=True）或 str（raw .run()）。
-        _semantic_analysis 已经能处理两种类型。
-        """
+        """Implementation details."""
         if self.llm is None:
             return None
 
         if callable(self.llm):
-            logger.info("[TEMPLATE] ContentPatternExtractor: 使用 callable LLM")
+            logger.info("[TEMPLATE] ContentPatternExtractor: using callable LLM")
             async def _call(prompt):
                 try:
                     return await self.llm(prompt, return_json=True)
@@ -961,7 +940,7 @@ class ContentPatternExtractor:
             return _call
 
         if hasattr(self.llm, 'run'):
-            logger.info(f"[TEMPLATE] ContentPatternExtractor: 使用 memslides LLM.run() 直接调用")
+            logger.info("[TEMPLATE] ContentPatternExtractor: calling memslides LLM.run() directly")
             async def _call(prompt):
                 messages = [{"role": "user", "content": prompt}]
                 resp = await self.llm.run(messages)
@@ -970,5 +949,5 @@ class ContentPatternExtractor:
                 return None
             return _call
 
-        logger.warning(f"[TEMPLATE] ContentPatternExtractor: 无法识别的 LLM 类型: {type(self.llm)}")
+        logger.warning(f"[TEMPLATE] ContentPatternExtractor: unsupported LLM type: {type(self.llm)}")
         return None

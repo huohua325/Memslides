@@ -1,7 +1,4 @@
-"""RoundSummarizer — Round 结束时生成结构化摘要
-
-Design Doc §8.3: 规则模式 + 可选 LLM 精炼。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -99,12 +96,7 @@ def _call_is_error(call: dict[str, Any]) -> bool:
 
 
 class RoundSummarizer:
-    """Round 摘要生成器。
-
-    两种模式：
-    - 规则提取（快速）：从工具调用日志中提取 slides/actions/outcome
-    - LLM 精炼（工具调用 > 20 次时）：调用 LLM 生成精炼摘要
-    """
+    """Implementation details."""
 
     def __init__(self, llm: Any = None):
         self._llm = llm
@@ -117,7 +109,7 @@ class RoundSummarizer:
         agent_response: str,
         round_id: str = "",
     ) -> RoundSummary:
-        """生成 RoundSummary。"""
+        """Implementation details."""
         slides_modified = self._extract_modified_slides(tool_calls_log)
         outcome = self._determine_outcome(tool_calls_log)
 
@@ -139,7 +131,7 @@ class RoundSummarizer:
         )
 
     def _extract_modified_slides(self, tool_calls_log: list[dict]) -> list[str]:
-        """从实际修改类工具中提取 slide_N。"""
+        """Implementation details."""
         slides = set()
         for call in tool_calls_log:
             name = _call_name(call)
@@ -196,7 +188,7 @@ class RoundSummarizer:
         return sorted(slides)
 
     def _extract_key_actions(self, tool_calls_log: list[dict]) -> list[str]:
-        """统计工具调用次数 + 检测 retry 模式。"""
+        """Implementation details."""
         actions = []
         write_count = sum(1 for c in tool_calls_log if _call_name(c) == "write_html_file")
         patch_count = sum(1 for c in tool_calls_log if _call_name(c) == "apply_slide_patch")
@@ -219,7 +211,7 @@ class RoundSummarizer:
             actions.append(f"检查了 {inspect_count} 次幻灯片效果")
         if img_gen_count:
             actions.append(f"生成了 {img_gen_count} 张图片")
-        # write→inspect retry 模式
+
         retry_count = sum(
             1 for i in range(1, len(tool_calls_log))
             if _call_name(tool_calls_log[i]) in _MODIFY_TOOLS
@@ -230,7 +222,7 @@ class RoundSummarizer:
         return actions
 
     def _determine_outcome(self, tool_calls_log: list[dict]) -> str:
-        """基于 is_error 和 finalize 判断 outcome。"""
+        """Implementation details."""
         has_error = any(_call_is_error(c) for c in tool_calls_log)
         has_finalize = any(_call_name(c) == "finalize" for c in tool_calls_log)
         if has_error and not has_finalize:
@@ -238,7 +230,7 @@ class RoundSummarizer:
         return "success"
 
     def _extract_unresolved(self, tool_calls_log: list[dict]) -> list[str]:
-        """检查最后一次 inspect_slide 结果中的溢出关键词。"""
+        """Implementation details."""
         issues = []
         for call in reversed(tool_calls_log):
             if _call_name(call) == "inspect_slide":
@@ -276,10 +268,10 @@ class RoundSummarizer:
     async def _llm_summarize(
         self, user_message: str, tool_calls_log: list[dict], agent_response: str,
     ) -> tuple[list[str], list[str]]:
-        """LLM 精炼摘要（工具调用 > LLM_SUMMARY_THRESHOLD 时）。"""
+        """Implementation details."""
         from ..prompts.chain_prompts import TASK_SUMMARY_PROMPT
 
-        # 压缩 tool_calls_log：每条只保留名称+是否出错+结果前100字符
+
         compressed = []
         for c in tool_calls_log:
             err_tag = " [ERROR]" if _call_is_error(c) else ""

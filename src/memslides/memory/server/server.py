@@ -1,14 +1,4 @@
-"""Memory MCP Server — 独立FastMCP进程
-
-启动方式：
-    fastmcp dev memslides/memory/server.py
-    或通过mcp.json配置自动启动
-
-暴露工具：
-    1. search_experiences — 检索经验轨迹
-    2. search_episodes    — 检索设计情景 (Stage 2)
-    3. remember_lesson    — 记录重要经验到经验库
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -30,7 +20,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# 全局实例（惰性初始化）
+
 _db: SQLiteBackend | None = None
 
 # Stage 2 stores
@@ -59,7 +49,7 @@ def _resolve_db_path() -> Path:
 
 
 async def _ensure_initialized():
-    """惰性初始化数据库和存储"""
+    """Implementation details."""
     global _db, _episode_store, _exp_writer
     if _db is None:
         db_path = _resolve_db_path()
@@ -125,7 +115,7 @@ async def _get_episode_store():
 
 
 async def _get_exp_writer():
-    """获取 ExperienceTraceWriter"""
+    """Implementation details."""
     await _ensure_initialized()
     assert _exp_writer is not None, "Stage 2 not available"
     return _exp_writer
@@ -141,7 +131,7 @@ async def tool_search_experiences(
     outcome: str = "",
     limit: int = 10,
 ) -> str:
-    """检索经验轨迹"""
+    """Implementation details."""
     db = await _get_db()
 
     where_clauses = []
@@ -204,7 +194,7 @@ async def tool_search_experiences(
 
 
 async def tool_search_episodes(user_id: str, query: str, limit: int = 10) -> str:
-    """检索设计情景（Stage 2 EpisodeStore）"""
+    """Implementation details."""
     if not STAGE2_AVAILABLE:
         return json.dumps({"error": "Stage 2 not available"}, ensure_ascii=False)
 
@@ -234,15 +224,7 @@ async def tool_remember_lesson(
     category: str = "tool_error",
     session_id: str = "",
 ) -> str:
-    """记录一条重要经验到经验库 (Stage 14 重构)
-
-    Agent 在推理过程中主动调用，记录发现的可复用教训。
-    MCP 工具仅返回确认 JSON，不直接操作 DB。
-    实际写入由 agent.py 的 _tool_result_callback → orchestrator.on_remember_lesson() → WM 完成。
-    LTM 持久化统一由 Job 结束时 _consolidate_experiences_to_ltm() 处理。
-
-    Stage 14: 移除 from_tool_error() hack，remember_lesson 不再双写 LTM。
-    """
+    """Implementation details."""
     normalized_category = infer_task_experience_category(
         category,
         keywords,
@@ -250,7 +232,7 @@ async def tool_remember_lesson(
         content,
     )
 
-    # 自动生成 keywords（如果未提供）
+
     if not keywords:
         keywords = _auto_generate_keywords(content, tool_name)
 
@@ -267,12 +249,12 @@ async def tool_remember_lesson(
 
 
 def _auto_generate_keywords(content: str, tool_name: str) -> list[str]:
-    """从 content 和 tool_name 自动提取关键词"""
+    """Implementation details."""
     keywords = []
     if tool_name:
         keywords.append(tool_name)
 
-    # 常见模式词
+
     patterns = [
         "overflow", "layout", "spacing", "font", "color", "image",
         "text", "title", "card", "grid", "flex", "margin", "padding",
@@ -284,7 +266,7 @@ def _auto_generate_keywords(content: str, tool_name: str) -> list[str]:
         if p in content_lower:
             keywords.append(p)
 
-    return keywords[:10]  # 限制数量
+    return keywords[:10]
 
 
 def reset_global_state():
@@ -317,7 +299,7 @@ def create_mcp_app():
         outcome: str = "",
         limit: int = 10,
     ) -> str:
-        """检索经验轨迹"""
+        """Implementation details."""
         return await tool_search_experiences(
             session_id, task_description, scenarios, outcome, limit
         )
@@ -326,7 +308,7 @@ def create_mcp_app():
 
     @mcp.tool()
     async def search_episodes(user_id: str, query: str, limit: int = 10) -> str:
-        """检索设计情景（Stage 2）"""
+        """Implementation details."""
         return await tool_search_episodes(user_id, query, limit)
 
     @mcp.tool()
@@ -337,19 +319,7 @@ def create_mcp_app():
         category: str = "tool_error",
         session_id: str = "",
     ) -> str:
-        """记录一条重要经验到经验库。当你发现某个可复用的工具教训或成功模式时调用此工具。
-
-        Args:
-            content: 教训内容
-            tool_name: 相关工具名（可选）
-            keywords: 检索关键词列表（可选，用于后续向量检索）
-            category: 分类标签，只能是以下之一：
-                - "tool_error": 直接工具失败、输入错误、前置条件不满足
-                - "tool_misuse": 工具选错/顺序错/角色误用导致软失败
-                - "tool_limitation": 工具盲区、能力边界、观测缺口
-                - "pattern": 成功且可复用的工作流或最佳实践
-            session_id: 会话ID（可选）
-        """
+        """Implementation details."""
         return await tool_remember_lesson(content, tool_name, keywords, category, session_id)
 
     return mcp

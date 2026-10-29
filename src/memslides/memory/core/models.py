@@ -1,16 +1,4 @@
-"""记忆系统核心数据模型。
-
-活跃类:
-- Message             (对话消息)
-- ExperienceTrace     (经验轨迹)
-- DesignEpisode       (情景记忆)
-- AtomicPreference    (原子级用户偏好)
-
-已删除 (Stage B 清理，0 外部调用):
-- EditSegment, Episode, Rule, AtomicFact, Foresight, FactualRecord
-- RuleScope, RuleStatus, MemoryType, IntentType
-- ReactionType, RuleType, ConstraintType, DesignCategory, EpisodeStatus
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -79,7 +67,7 @@ _EXPERIENCE_TYPE_PRIORITY = {
 
 
 def normalize_experience_type(value: Any) -> str:
-    """将经验类别标签归一为稳定的语义类型。"""
+    """Implementation details."""
     text = str(value or "").strip().lower()
     if not text:
         return ""
@@ -112,7 +100,7 @@ def infer_experience_type(
     scenarios: Any = None,
     final_outcome: str = "",
 ) -> str:
-    """根据显式类型、场景标签和结果状态推断统一经验类型。"""
+    """Implementation details."""
     explicit = normalize_experience_type(experience_type)
     if explicit and explicit != "generic":
         return explicit
@@ -142,7 +130,7 @@ def infer_experience_type(
 
 
 def default_outcome_for_experience_type(experience_type: Any, fallback: str = "") -> str:
-    """为经验类型提供合理的默认 outcome。"""
+    """Implementation details."""
     normalized = infer_experience_type(experience_type)
     if normalized == "tool_error":
         return "failed"
@@ -158,7 +146,7 @@ def _infer_legacy_constraint_task_category(
     final_outcome: str = "",
     content: str = "",
 ) -> str:
-    """将历史 constraint 标签折叠进新的 task-experience 分类体系。"""
+    """Implementation details."""
     outcome = str(final_outcome or "").strip().lower()
     if outcome in {"failed", "error"}:
         return "tool_error"
@@ -206,7 +194,7 @@ def infer_task_experience_category(
     final_outcome: str = "",
     content: str = "",
 ) -> str:
-    """推断 RoundExperience 的轮次级分类，排除 chain 等独立注入路径。"""
+    """Implementation details."""
     normalized = infer_experience_type(experience_type, scenarios, final_outcome)
     if normalized == "constraint":
         return _infer_legacy_constraint_task_category(scenarios, final_outcome, content)
@@ -216,17 +204,17 @@ def infer_task_experience_category(
 
 
 # ═══════════════════════════════════════════════
-# 会话消息
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class Message:
-    """单条对话消息"""
+    """Implementation details."""
     role: str = ""                          # "user" | "assistant" | "system"
     content: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    metadata: dict = field(default_factory=dict)  # intent_type, slide_index等
+    metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -239,46 +227,39 @@ class Message:
 
 
 # ═══════════════════════════════════════════════
-# 经验轨迹
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class ExperienceTrace:
-    """经验轨迹（Experiential Memory）
-
-    记录Agent推理过程，辅助新Session中类似任务的PPT生成。
-
-    Stage 12 扩展: 支持链级经验的完整信息（零损失转换）
-    - experience_type: 区分来源（tool_error | chain | agent_run）
-    - 链级字段（可选）: chain_name, tool_sequence, anti_pattern, applicable_when
-    """
+    """Implementation details."""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str = ""
-    task_description: str = ""         # 任务描述
+    task_description: str = ""
     reasoning_steps: str = "[]"        # JSON: [{step, thought, action, result}]
-    tools_used: str = "[]"             # JSON: 工具列表（兼容旧代码）
+    tools_used: str = "[]"
     final_outcome: str = ""            # success/partial/failed
-    lessons_learned: str = ""          # LLM总结的经验教训
-    applicable_scenarios: str = "[]"   # JSON: 场景标签
+    lessons_learned: str = ""
+    applicable_scenarios: str = "[]"
     confidence: float = 0.7
     reuse_count: int = 0
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     status: str = "active"             # active | superseded | archived
-    superseded_by: str = ""            # 被哪条新经验替代
-    superseded_at: str = ""            # 被替代时间
-    merged_from_ids: str = "[]"        # JSON: 来源 RoundExperience / ExperienceTrace IDs
+    superseded_by: str = ""
+    superseded_at: str = ""
+    merged_from_ids: str = "[]"
     source_types: str = "[]"           # JSON: ["agent_lesson", "auto_extract", ...]
-    consolidation_version: str = ""    # Stage 15 归档版本标记
-    template_id: str = ""              # Stage 9: 关联的模板 ID
+    consolidation_version: str = ""
+    template_id: str = ""
 
-    # Stage 12: 链级扩展字段（可选，向后兼容）
+
     experience_type: str = "generic"   # "tool_error" | "chain" | "agent_run"
-    chain_name: str = ""               # 工具链名称（仅 chain 类型）
-    tool_sequence: str = "[]"          # JSON: list[str] 工具序列（替代 tools_used）
-    anti_pattern: str = ""             # 反模式描述（仅 chain 类型）
-    applicable_when: str = ""          # 详细适用条件（比 applicable_scenarios 更具体）
-    source_chain_ids: str = "[]"       # JSON: list[str] 来源链ID（仅 chain 类型）
+    chain_name: str = ""
+    tool_sequence: str = "[]"
+    anti_pattern: str = ""
+    applicable_when: str = ""
+    source_chain_ids: str = "[]"
 
     def __post_init__(self) -> None:
         self.experience_type = infer_experience_type(
@@ -296,43 +277,29 @@ class ExperienceTrace:
 
 
 # ═══════════════════════════════════════════════
-# WM 统一经验模型 — RoundExperience
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class RoundExperience:
-    """WM 统一经验模型，描述一轮交互中得到的可复用经验。
-
-    所有来源共用同一模型，通过 source 字段区分：
-    - "agent_lesson": remember_lesson 主动记录
-    - "auto_extract": ExperienceTraceWriter 自动提取
-    - "tool_error":   工具调用失败时即时记录
-    - "preload":      Job 开始时从 LTM 预加载
-
-    生命周期 (Stage 15 统一):
-    1. remember_lesson / 自动提取 / 工具错误 / LTM 预加载 → 写入 WM
-    2. 每个 Round 开始 → 向量检索 → 注入 System Prompt
-    3. Job 结束 → 所有非 preload 的经验按 category 分组合并 → 写入 LTM
-       (preload 本身来自 LTM，跳过)
-    4. 下一个 Job 开始 → 从 LTM 预加载到 WM
-    """
+    """Implementation details."""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    content: str = ""                   # 经验内容（核心字段）
-    tool_name: str = ""                 # 相关工具名
-    keywords: list[str] = field(default_factory=list)  # 检索关键词
-    category: str = "tool_error"        # 轮次级语义类型: tool_error | tool_misuse | tool_limitation | pattern | generic
+    content: str = ""
+    tool_name: str = ""
+    keywords: list[str] = field(default_factory=list)
+    category: str = "tool_error"
     source: str = "agent_lesson"        # "agent_lesson" | "auto_extract" | "tool_error" | "preload"
-    source_task_id: str = ""            # 历史字段：来源 Round ID，经 DB adapter 映射到旧列名
-    source_job_id: str = ""             # 来源 Job ID
+    source_task_id: str = ""
+    source_job_id: str = ""
     confidence: float = 0.8
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    # 自动提取时保留的额外上下文（agent_lesson 时为空）
+
     tools_used: list[str] = field(default_factory=list)
     outcome: str = ""                   # "success" | "partial" | "failed"
 
-    # 向量检索支持（延迟计算）
+
     _embedding: list[float] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -345,7 +312,7 @@ class RoundExperience:
 
     def to_dict(self) -> dict:
         d = asdict(self)
-        d.pop("_embedding", None)  # 不序列化 embedding
+        d.pop("_embedding", None)
         return d
 
     @classmethod
@@ -355,7 +322,7 @@ class RoundExperience:
         return cls(**filtered)
 
     def to_prompt_text(self) -> str:
-        """生成注入 prompt 的文本"""
+        """Implementation details."""
         prefix = f"[{self.tool_name}] " if self.tool_name else ""
         suffix = ""
         if self.source == "auto_extract" and self.outcome:
@@ -367,10 +334,10 @@ TempExperienceTrace = RoundExperience
 
 
 # ═══════════════════════════════════════════════
-# 序列化辅助
+
 # ═══════════════════════════════════════════════
 
-# dataclass 字段中，哪些是 JSON 编码的（dict / list 存为 str）
+
 _JSON_FIELDS: dict[type, set[str]] = {}
 
 
@@ -393,7 +360,7 @@ _register_json_fields(
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:
-    """将 dataclass 转为 dict，JSON 字段自动 dumps。"""
+    """Implementation details."""
     d = asdict(obj)
     json_fields = _JSON_FIELDS.get(type(obj), set())
     for k in json_fields:
@@ -403,7 +370,7 @@ def _to_dict(obj: Any) -> dict[str, Any]:
 
 
 def _from_dict(cls: type, data: dict[str, Any]) -> Any:
-    """从 dict 重建 dataclass，JSON 字段自动 loads。"""
+    """Implementation details."""
     json_fields = _JSON_FIELDS.get(cls, set())
     valid_field_names = {f.name for f in fields(cls)}
     cleaned = {}
@@ -421,26 +388,26 @@ def _from_dict(cls: type, data: dict[str, Any]) -> Any:
 
 
 # ═══════════════════════════════════════════════
-# 情景记忆 — DesignEpisode
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class DesignEpisode:
-    """一次有意义的交互事件 — 因果链记录"""
+    """Implementation details."""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = ""
     session_id: str = ""
     source_round_id: int = 0
 
-    # 因果链
+
     user_intent: str = ""
     interpretation_gap: str = ""
     action_outcome: str = ""
 
-    # 洞察
+
     design_insight: str = ""
 
-    # 元数据
+
     category: str = ""
     confidence: float = 0.7
     status: str = "active"
@@ -453,60 +420,53 @@ class DesignEpisode:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DesignEpisode:
         cleaned = dict(data)
-        # 忽略 SQLite 中残留的已废弃列
+
         for legacy in ("used_for_profile_update", "used_for_rule_induction"):
             cleaned.pop(legacy, None)
         return _from_dict(cls, cleaned)
 
 
 # ═══════════════════════════════════════════════
-# 原子级用户偏好 — AtomicPreference
+
 # ═══════════════════════════════════════════════
 
 @dataclass
 class AtomicPreference:
-    """原子级用户偏好 — 细粒度、可独立检索
+    """Implementation details."""
 
-    设计理念:
-    1. 每个偏好是独立的、原子的，可单独检索和验证
-    2. preference_type 区分"价值观偏好"和"策略偏好"
-    3. scope 支持全局、幻灯片类型、元素类型三级作用域
-    4. conflict_group 实现同类偏好的自动覆盖
-    """
 
-    # ── 标识 ──
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = ""
 
-    # ── 核心内容 ──
+
     preference_type: str = "value"          # "value" | "strategy"
-    trigger: str = ""                        # 触发条件（何时适用）
-    preference: str = ""                     # 偏好内容（用户想要什么）
-    rationale: str = ""                      # 来源解释（为什么有这个偏好）
+    trigger: str = ""
+    preference: str = ""
+    rationale: str = ""
 
-    # ── 作用域 ──
+
     scope: str = "global"                    # "global" | "slide_type" | "element_type"
-    scope_value: str = ""                    # scope 的具体值，如 "title", "text", "image"
+    scope_value: str = ""
 
-    # ── 来源追踪 ──
-    source_job_id: str = ""                  # 产生此偏好的 Job ID
-    source_session_id: str = ""              # 产生此偏好的 Session ID
 
-    # ── 证据追踪 ──
-    evidence_episode_ids: str = "[]"         # JSON: 支撑此偏好的 Episode IDs
+    source_job_id: str = ""
+    source_session_id: str = ""
 
-    # ── 置信度管理 ──
+
+    evidence_episode_ids: str = "[]"
+
+
     confidence: float = 0.5                  # 0.0 - 1.0
-    verified_count: int = 0                  # 正向验证次数
-    contradiction_count: int = 0             # 反向矛盾次数
+    verified_count: int = 0
+    contradiction_count: int = 0
 
-    # ── 冲突处理 ──
-    conflict_group: str = ""                 # 冲突组标识，同组内新偏好覆盖旧偏好
 
-    # ── 状态管理 ──
+    conflict_group: str = ""
+
+
     status: str = "active"                   # "active" | "deprecated" | "superseded"
 
-    # ── 时间戳 ──
+
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -518,11 +478,7 @@ class AtomicPreference:
         return _from_dict(cls, data)
 
     def matches_context(self, context: dict) -> bool:
-        """检查偏好是否适用于给定上下文
-
-        Args:
-            context: {"slide_type": "title", "element_type": "text", ...}
-        """
+        """Implementation details."""
         if self.scope == "global":
             return True
         if self.scope == "slide_type":
@@ -536,7 +492,7 @@ _register_json_fields(AtomicPreference, {"evidence_episode_ids"})
 
 
 # ═══════════════════════════════════════════════
-# 维度归一化
+
 # ═══════════════════════════════════════════════
 
 VALID_DIMENSIONS: dict[str, str] = {
@@ -613,14 +569,11 @@ _TRANSIENT_TEMPLATE_REQUEST_PATTERNS = (
 
 
 def normalize_dimension(raw_dim: str) -> str:
-    """将 LLM 输出的 dimension 归一化到标准值。
-
-    策略：精确匹配 → 前缀匹配 → 原样返回（兜底）
-    """
+    """Implementation details."""
     raw_dim = raw_dim.strip().lower()
     if raw_dim in VALID_DIMENSIONS:
         return VALID_DIMENSIONS[raw_dim]
-    # 前缀匹配：找到与 raw_dim 同一类别前缀的最长 key
+
     best_match = ""
     for key in VALID_DIMENSIONS:
         prefix = key.rsplit(".", 1)[0] + "."
@@ -678,13 +631,13 @@ def is_template_related_preference(
 
 
 # ═══════════════════════════════════════════════
-# 执行层级模型 — Job / Round / Operation
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class Operation:
-    """Round 中的单次工具调用或内部动作（不入库，仅在 WM 中临时存储）"""
+    """Implementation details."""
     tool_name: str
     args_summary: str = ""
     result_summary: str = ""
@@ -703,7 +656,7 @@ class Operation:
 
 @dataclass
 class Round:
-    """Job 中的一轮用户输入到 agent 响应的交互单元。"""
+    """Implementation details."""
     id: str
     job_id: str
     user_message: str = ""
@@ -729,7 +682,7 @@ class Round:
 
 @dataclass
 class Job:
-    """一次多轮对话会话"""
+    """Implementation details."""
     id: str
     user_id: str
     project_id: str
@@ -737,10 +690,10 @@ class Job:
     started_at: str = field(default_factory=lambda: datetime.now().isoformat())
     ended_at: str = ""
     rounds: list[Round] = field(default_factory=list)
-    intent: str = ""  # Job级别的用户意图（academic/business/education等），在Job创建时确定一次
-    read_intent: str = ""   # 画像读取 intent（优先参考哪条历史画像）
-    write_intent: str = ""  # 画像写回 intent（本次形成的新稳定偏好应沉淀到哪条画像）
-    core_persona: str = ""  # 用户稳定人格底色（如 scholar / executive / designer）
+    intent: str = ""
+    read_intent: str = ""
+    write_intent: str = ""
+    core_persona: str = ""
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -763,13 +716,13 @@ class Job:
         return job
 
 # ═══════════════════════════════════════════════
-# WM 临时偏好 — TempPreference
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class TempPreference:
-    """WM 中的临时偏好，带维度归一化"""
+    """Implementation details."""
     content: str
     dimension: str = ""
     preference_type: str = "value"  # "value" | "strategy"
@@ -777,7 +730,7 @@ class TempPreference:
     scope: str = "global"
     scope_value: str = ""
     superseded: bool = False
-    structured_data: dict | None = None  # 结构化参数（路径 B 视觉指纹提取直接写入）
+    structured_data: dict | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def __post_init__(self):
@@ -795,23 +748,12 @@ class TempPreference:
 
 
 # ═══════════════════════════════════════════════
-# 工具链模型 — ToolChain / ChainExperience
+
 # ═══════════════════════════════════════════════
 
 
 def make_chain_signature(tool_sequence: list[str]) -> str:
-    """从工具序列生成确定性签名，去重连续相同工具后用 ``-`` 连接。
-
-    三层命名体系：
-    - Tool Trace: 单个 Round 内完整的原始工具调用序列
-    - Chain Segment (原 ToolChain): Tool Trace 经 LLM 按语义切分后的片段
-    - Chain Experience: 从 Chain Segment 蒸馏出的经验条目，存储于 LTM
-
-    例::
-
-        >>> make_chain_signature(["read_file", "read_file", "write_html", "inspect_slide"])
-        'read_file-write_html-inspect_slide'
-    """
+    """Implementation details."""
     deduped: list[str] = []
     for tool in tool_sequence:
         if not deduped or deduped[-1] != tool:
@@ -822,12 +764,9 @@ def make_chain_signature(tool_sequence: list[str]) -> str:
 
 @dataclass
 class ChainSegment:
-    """一条工具链片段 — 若干连续 Cycle 的聚合（原 ToolChain）
-
-    三层命名体系中的第二层：Tool Trace → Chain Segment → Chain Experience
-    """
+    """Implementation details."""
     chain_id: str
-    chain_name: str                    # 确定性签名：make_chain_signature(tool_sequence)
+    chain_name: str
     tool_sequence: list[str]
     cycle_indices: list[int]
     rich_traces: list[dict] = field(default_factory=list)
@@ -843,7 +782,7 @@ class ChainSegment:
         "is_error": bool,
     }
     """
-    semantic_label: str = ""           # LLM 给出的可读描述（可选，不参与匹配逻辑）
+    semantic_label: str = ""
     outcome: str = "success"
     source_round_id: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -870,14 +809,14 @@ class ChainSegment:
         self.source_round_id = value
 
 
-# 向后兼容别名
+
 ToolChain = ChainSegment
 
 
 
 @dataclass
 class ChainExperience:
-    """从工具链中提炼的经验条目"""
+    """Implementation details."""
     chain_name: str
     tool_pipeline: list[str]
     lesson: str
@@ -886,19 +825,19 @@ class ChainExperience:
     source_chain_ids: list[str] = field(default_factory=list)
     confidence: float = 0.5
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    # 新增字段
-    keywords: list[str] = field(default_factory=list)        # LLM 生成的检索关键词
-    subkey: str = ""                                          # 同签名下唯一标识
-    inject_summary: str = ""                                  # Operation 级短摘要
-    support_count: int = 1                                    # 支持该经验的来源链数量
-    merge_count: int = 0                                      # 被合并更新次数
-    source_users: list[str] = field(default_factory=list)     # 来源用户（预留审计）
-    source_job_ids: list[str] = field(default_factory=list)   # 来源任务/作业（预留审计）
-    keyword_embedding: list[float] | None = field(default=None, repr=False)  # 向量嵌入
+
+    keywords: list[str] = field(default_factory=list)
+    subkey: str = ""
+    inject_summary: str = ""
+    support_count: int = 1
+    merge_count: int = 0
+    source_users: list[str] = field(default_factory=list)
+    source_job_ids: list[str] = field(default_factory=list)
+    keyword_embedding: list[float] | None = field(default=None, repr=False)
 
     def to_dict(self) -> dict:
         d = asdict(self)
-        d.pop("keyword_embedding", None)  # 不序列化到 JSON
+        d.pop("keyword_embedding", None)
         return d
 
     @classmethod
@@ -909,13 +848,13 @@ class ChainExperience:
 
 
 # ═══════════════════════════════════════════════
-# Round 摘要 — RoundSummary
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class RoundSummary:
-    """Round 结束时生成的结构化摘要，用于注入后续 Round 的 context。"""
+    """Implementation details."""
     round_id: str
     round_index: int
     user_request: str
@@ -942,7 +881,7 @@ class RoundSummary:
                 lines.append(f"  - {issue}")
         if self.user_feedback:
             lines.append(f"用户反馈: {self.user_feedback}")
-        # 因果链：DesignEpisode 提供 intent→gap→outcome 完整上下文
+
         if self.design_episode:
             ep = self.design_episode
             if ep.user_intent:
@@ -980,19 +919,19 @@ class RoundSummary:
 
 
 # ═══════════════════════════════════════════════
-# Operation 级记忆分发结果 — OperationMemory
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class OperationMemory:
-    """RoundCache 为单个 Operation 筛选后的记忆集合。"""
+    """Implementation details."""
     tool_experiences: list = field(default_factory=list)
     preferences: list = field(default_factory=list)
 
 
 # ═══════════════════════════════════════════════
-# UserProfile 结构化画像模型（Design Doc §4.5）
+
 # ═══════════════════════════════════════════════
 
 
@@ -1082,7 +1021,7 @@ class TemplatePreference:
         return normalized
 
     def normalize(self) -> bool:
-        """规范化模板画像字段，兼容旧 JSON 载荷。"""
+        """Implementation details."""
         changed = False
         list_fields = (
             "preferred_templates",
@@ -1191,13 +1130,7 @@ class TemplatePreference:
         max_scenarios: int = 4,
         reset_semantic_fields: bool = False,
     ) -> bool:
-        """从 template_usage_history 派生稳定模板摘要。
-
-        这里不会修改手工语义字段（preferred_templates / selection_criteria / avoid_templates），
-        只更新 history_* 与最近成功模板相关的系统维护字段。
-        当 reset_semantic_fields=True 时，会清空旧的语义模板字段，
-        让运行时模板选择完全由 usage history 驱动。
-        """
+        """Implementation details."""
         grouped: dict[str, dict[str, Any]] = {}
         supporting_records: list["TemplateUsageRecord"] = []
 
@@ -1329,7 +1262,7 @@ class TemplatePreference:
 
 @dataclass
 class GeneralPreference:
-    """兜底维度 — 无法归入其他维度的通用偏好。"""
+    """Implementation details."""
     preferences: list[str] = field(default_factory=list)
     confidence: float = 0.5
     keywords: list[str] = field(default_factory=lambda: [])
@@ -1338,7 +1271,7 @@ class GeneralPreference:
 
 @dataclass
 class UserCoreProfile:
-    """跨 intent 共享的稳定用户底色画像。"""
+    """Implementation details."""
     user_id: str = ""
     core_persona: str = ""
     theme: ThemePreference = field(default_factory=ThemePreference)
@@ -1485,7 +1418,7 @@ class UserCoreProfile:
 
 @dataclass
 class UserProfile:
-    """用户偏好画像 — 按维度组织，LTM 偏好检索的唯一源。"""
+    """Implementation details."""
     user_id: str = ""
     theme: ThemePreference = field(default_factory=ThemePreference)
     visual: VisualPreference = field(default_factory=VisualPreference)
@@ -1497,7 +1430,7 @@ class UserProfile:
     version: int = 1
 
     def merge_from_temp_preferences(self, temp_prefs: list[TempPreference]) -> None:
-        """根据 dimension 前缀分发到对应子结构。"""
+        """Implementation details."""
         for pref in temp_prefs:
             dim = pref.dimension or ""
             if dim.startswith("theme."):
@@ -1511,12 +1444,12 @@ class UserProfile:
             elif dim.startswith("template."):
                 self._update_field(self.template, pref)
             else:
-                # 兜底：无法映射维度前缀的偏好归入 general
+
                 if pref.content not in self.general.preferences:
                     self.general.preferences.append(pref.content)
 
     def _update_field(self, sub_pref: Any, temp_pref: TempPreference) -> None:
-        """简单字段写入（仅用于 merge_from_temp_preferences 兜底，正式晋升走 Consolidator）。"""
+        """Implementation details."""
         field_name = temp_pref.dimension.split(".", 1)[1] if "." in temp_pref.dimension else ""
         if not field_name or not hasattr(sub_pref, field_name):
             return
@@ -1525,7 +1458,7 @@ class UserProfile:
             sub_pref.notes.append(temp_pref.content)
 
     def get_dimension_map(self) -> dict[str, Any]:
-        """返回维度名称 → 子结构的映射（含 general 兜底）。"""
+        """Implementation details."""
         return {
             "theme": self.theme,
             "visual": self.visual,
@@ -1536,7 +1469,7 @@ class UserProfile:
         }
 
     def match_dimension(self, text: str) -> str:
-        """根据关键词匹配最佳维度名称。返回维度名或 'general'。"""
+        """Implementation details."""
         text_lower = text.lower()
         best_dim = "general"
         best_score = 0
@@ -1555,18 +1488,10 @@ class UserProfile:
         dimensions: set[str] | None = None,
         include_general: bool = True,
     ) -> str:
-        """生成注入 Agent prompt 的偏好文本（结构化 + 通用约束）。
-
-        Args:
-            dimensions: 要包含的维度名称集合（如 {"theme", "layout"}）。
-                        None 表示全量输出所有维度。
-            include_general: 是否附带输出 general.preferences。
-                             Agent 注入场景应为 True，逐维分析场景应为 False，
-                             避免把 general 偏好混入每个 specific 维度摘要。
-        """
+        """Implementation details."""
         include_all = dimensions is None
         sections: list[str] = []
-        # 各维度偏好（按 dimensions 过滤）
+
         dim_parts: list[str] = []
         if (include_all or "theme" in dimensions) and (
             self.theme.primary_colors or self.theme.font_family or self.theme.notes
@@ -1666,7 +1591,7 @@ class UserProfile:
             dim_parts.append(f"- **模板**: {'; '.join(parts)}")
         if dim_parts:
             sections.append("## User Preferences\n" + "\n".join(dim_parts))
-        # 通用偏好：在 Agent 注入时始终包含；逐维分析场景可显式关闭
+
         if include_general and self.general.preferences:
             lines = ["## General Preferences"]
             for p in self.general.preferences:
@@ -1679,7 +1604,7 @@ class UserProfile:
 
     @staticmethod
     def _safe_construct(cls, data: dict):
-        """从 dict 安全构建 dataclass 实例，只保留 cls 已知的字段。"""
+        """Implementation details."""
         valid = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in data.items() if k in valid})
 
@@ -1705,7 +1630,7 @@ class UserProfile:
 
 @dataclass
 class UserStateSnapshot:
-    """运行时拼装后的共享用户状态视图。"""
+    """Implementation details."""
     user_id: str = ""
     core_persona: str = ""
     task_intent: str = ""
@@ -1733,49 +1658,39 @@ class UserStateSnapshot:
 
 
 # ═══════════════════════════════════════════════
-# 模板使用记录 — TemplateUsageRecord
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class TemplateUsageRecord:
-    """模板使用历史记录 — 用于场景匹配的智能模板推荐
+    """Implementation details."""
 
-    记录用户在特定场景下使用模板的完整上下文，包括：
-    - 用户原始请求（user_message）及其向量嵌入
-    - 模板元数据（template_id, template_name）
-    - 意图类型（explicit, implicit, anti）
-    - 附件信息（has_attachment, attachment_type）
-    - 成功标记（success，预留用于未来增强）
 
-    通过向量相似度匹配历史场景，实现隐式模板推荐。
-    """
-
-    # ── 标识 ──
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = ""
     template_id: str = ""
     template_name: str = ""
 
-    # ── 场景上下文 ──
-    user_message: str = ""                              # 用户原始请求（截断至 500 字符）
-    user_message_embedding: list[float] | None = None   # 用于相似度匹配的向量嵌入
 
-    # ── 意图元数据 ──
+    user_message: str = ""
+    user_message_embedding: list[float] | None = None
+
+
     intent: str = "explicit"                            # "explicit" | "implicit" | "anti"
     memory_intent: str = ""                             # "academic" | "business" | ...
     aspect_ratio: str = ""                              # "16:9" | "4:3" | ...
     has_attachment: bool = False
     attachment_type: str = ""                           # "pptx" | "pdf" | "doc" | "image"
 
-    # ── 结果追踪 ──
-    success: bool = True                                # 预留用于未来增强（失败追踪）
 
-    # ── 时间戳 ──
+    success: bool = True
+
+
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
-        """序列化为 dict，用于数据库存储"""
+        """Implementation details."""
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -1794,17 +1709,17 @@ class TemplateUsageRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "TemplateUsageRecord":
-        """从 dict 反序列化，仅保留 dataclass 已知字段"""
+        """Implementation details."""
         valid_fields = {f.name for f in fields(cls)}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered)
 
 
 # ═══════════════════════════════════════════════
-# Intent-Based 用户画像
+
 # ═══════════════════════════════════════════════
 
-# 预定义 intent 类别及其关键词（用于规则匹配降级）
+
 INTENT_CATEGORIES: dict[str, list[str]] = {
     "academic": [
         "学术", "论文", "研究", "paper", "research", "thesis", "学位",
@@ -2429,10 +2344,7 @@ async def call_intent_classifier_llm(llm_client: Any, prompt: str) -> str:
 
 
 def classify_intent_by_keywords(text: str) -> str:
-    """基于关键词的 intent 分类（规则降级，零 LLM 成本）。
-
-    返回匹配度最高的 intent 类别名，无匹配时返回 "default"。
-    """
+    """Implementation details."""
     if not text:
         return DEFAULT_INTENT
     text_lower = text.lower()
@@ -2443,7 +2355,7 @@ def classify_intent_by_keywords(text: str) -> str:
         if score > best_score:
             best_score = score
             best_intent = intent_name
-    # 至少匹配 1 个关键词才认为有效（"学术"、"商务"等核心词已足够明确）
+
     return best_intent if best_score >= 1 else DEFAULT_INTENT
 
 
@@ -2452,16 +2364,7 @@ async def classify_intent_with_llm(
     llm_client: Any = None,
     fallback_to_keywords: bool = True,
 ) -> str:
-    """基于 LLM 的 intent 分类（主策略），关键词匹配作为降级。
-
-    Args:
-        text: 用户输入文本
-        llm_client: LLM 客户端（需要有 chat() 方法）
-        fallback_to_keywords: LLM 失败时是否降级到关键词匹配
-
-    Returns:
-        intent 类别名（academic/business/education/creative/report/default）
-    """
+    """Implementation details."""
     if not text:
         return DEFAULT_INTENT
 
@@ -2556,30 +2459,25 @@ INTENT_CLASSIFICATION_PROMPT = """你是用户意图分类器。根据用户的 
 
 @dataclass
 class IntentProfile:
-    """Intent-Based 用户画像容器。
-
-    层级结构: user_id → {intent → UserProfile}
-    同一用户在不同场景（学术/商务/教育等）下可以有不同的偏好画像。
-    "default" intent 作为兜底，当无法判断 intent 时使用。
-    """
+    """Implementation details."""
     user_id: str = ""
     profiles: dict[str, UserProfile] = field(default_factory=dict)
 
     def get_profile(self, intent: str = DEFAULT_INTENT) -> UserProfile:
-        """获取指定 intent 的画像，不存在时创建空画像（不从 default 继承，避免偏好污染）。"""
+        """Implementation details."""
         if intent in self.profiles:
             return self.profiles[intent]
-        # 新 intent：返回空画像，由 ProfileInjectionRouter 按需注入
+
         profile = UserProfile(user_id=self.user_id)
         self.profiles[intent] = profile
         return profile
 
     def set_profile(self, intent: str, profile: UserProfile) -> None:
-        """设置指定 intent 的画像。"""
+        """Implementation details."""
         self.profiles[intent] = profile
 
     def list_intents(self) -> list[str]:
-        """返回所有已有 intent 列表。"""
+        """Implementation details."""
         return list(self.profiles.keys())
 
     def to_dict(self) -> dict:
@@ -2600,42 +2498,39 @@ class IntentProfile:
 
 
 # ═══════════════════════════════════════════════
-# 视觉指纹 — SlideVisualFingerprint
+
 # ═══════════════════════════════════════════════
 
 
 @dataclass
 class SlideVisualFingerprint:
-    """单张幻灯片的确定性视觉指纹（从 HTML/CSS 直接解析，零 LLM 成本）。
+    """Implementation details."""
 
-    这是 PPT 场景特有的数据模型 — 用于多模态偏好提取的 Layer 1。
-    """
 
-    # ── 颜色 ──
-    colors_used: list[str] = field(default_factory=list)       # 所有非安全色的标准化颜色
-    background_color: str = ""                                  # body 背景色
+    colors_used: list[str] = field(default_factory=list)
+    background_color: str = ""
     background_type: str = ""                                   # "solid" | "gradient" | "image" | "none"
 
-    # ── 字体 ──
+
     fonts_used: list[tuple[str, float]] = field(default_factory=list)  # [(font_name, font_size)]
     title_font: str = ""
     title_size: float = 0.0
     body_font: str = ""
     body_size: float = 0.0
 
-    # ── 布局 ──
+
     element_counts: dict[str, int] = field(default_factory=dict)  # {text: N, image: N, ...}
-    content_area_ratio: float = 0.0       # 内容面积 / 幻灯片面积
-    image_text_ratio: float = 0.0         # 图片面积 / 文本面积
+    content_area_ratio: float = 0.0
+    image_text_ratio: float = 0.0
     has_bullet_points: bool = False
     bullet_point_count: int = 0
 
-    # ── 文本密度 ──
+
     title_char_count: int = 0
     body_char_count: int = 0
-    total_text_density: float = 0.0       # 总字符数 / 万像素
+    total_text_density: float = 0.0
 
-    # ── 元数据 ──
+
     slide_index: int = 0
     layout_name: str = ""
     html_path: str = ""
@@ -2651,12 +2546,12 @@ class SlideVisualFingerprint:
         return cls(**filtered)
 
 
-# 注：TaskSnapshot 已删除。指纹+多模态分析不再在 mid-job 构建快照，
-# 而是在 Consolidation 时直接从最终 PPT HTML 文件提取。
+
+
 
 
 # ═══════════════════════════════════════════════
-# 便捷导出
+
 # ═══════════════════════════════════════════════
 
 __all__ = [
@@ -2667,7 +2562,7 @@ __all__ = [
     "normalize_experience_type",
     "default_outcome_for_experience_type",
     "RoundExperience",
-    "TempExperienceTrace",  # 向后兼容别名
+    "TempExperienceTrace",
     "DesignEpisode",
     "AtomicPreference",
     "VALID_DIMENSIONS",

@@ -1,7 +1,4 @@
-"""JobManager — Job / Round 生命周期管理（替代 SessionManager）
-
-Design Doc §5.4: 管理 Job 的创建/结束/WM 绑定/Consolidation 触发。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -24,14 +21,7 @@ CONSOLIDATION_TIMEOUT_S = float(os.getenv("MEMSLIDES_CONSOLIDATION_TIMEOUT", "0"
 
 
 class JobManager:
-    """Job 生命周期管理器。
-
-    职责：
-    - start_job(): 创建 Job + 初始化 WM + DB 持久化
-    - start_round(): 创建 Round 追加到 Job
-    - record_operation(): 记录 Operation 到 Round
-    - end_job(): 触发 Consolidation + 释放 WM
-    """
+    """Implementation details."""
 
     def __init__(self, db: DatabaseBackend, consolidator: Any = None,
                  workspace: Path | None = None, embedding_func: Any = None):
@@ -41,17 +31,17 @@ class JobManager:
         self._embedding_func = embedding_func
         self._active_job: Job | None = None
         self._working_memory: WorkingMemory | None = None
-        self._migrated = False  # 迁移标记
+        self._migrated = False
 
     async def _ensure_intent_column(self) -> None:
-        """确保 jobs 表有 intent 列（向后兼容旧数据库）"""
+        """Implementation details."""
         if self._migrated:
             return
         try:
             rows = await self.db.query("PRAGMA table_info(jobs)", ())
             col_names = {r["name"] for r in rows} if rows else set()
             if col_names and "intent" not in col_names:
-                # 旧表：添加 intent 列
+
                 logger.info("Migrating jobs table: adding intent column")
                 await self.db.execute(
                     "ALTER TABLE jobs ADD COLUMN intent TEXT DEFAULT ''", ()
@@ -70,17 +60,8 @@ class JobManager:
         write_intent: str = "",
         core_persona: str = "",
     ) -> Job:
-        """创建 Job + 初始化 WM + DB 持久化。
+        """Implementation details."""
 
-        Args:
-            user_id: 用户 ID
-            project_id: 项目 ID
-            intent: 用户意图（可选，为空时在第一次 ProfileRouter 调用时推断）
-            read_intent: 画像读取 intent
-            write_intent: 画像写回 intent
-            core_persona: 用户稳定人格
-        """
-        # 确保 jobs 表有 intent 列（自动迁移）
         await self._ensure_intent_column()
 
         job = Job(
@@ -112,17 +93,13 @@ class JobManager:
             logger.warning(f"Failed to persist job to DB (non-fatal): {e}")
         self._active_job = job
         self._working_memory = WorkingMemory(job_id=job.id, embedding_func=self._embedding_func)
-        # 检查并重试 pending consolidation
+
         await self._retry_pending_consolidation(user_id)
         logger.info(f"Job started: {job.id} (user={user_id}, project={project_id})")
         return job
 
     async def start_round(self, user_message: str) -> Round:
-        """创建 Round 追加到当前 Job + DB 持久化。
-
-        TODO(memory-migration): SQLite schema 暂保留历史 tasks 表名；
-        新运行时通过本 adapter 将该表映射为 Round。
-        """
+        """Implementation details."""
         assert self._active_job is not None, "No active job"
         round_obj = Round(
             id=str(uuid4()), job_id=self._active_job.id,
@@ -144,7 +121,7 @@ class JobManager:
 
     def record_operation(self, round_obj: Round, tool_name: str, args: dict,
                          result: str, is_error: bool) -> None:
-        """记录 Operation 到 Round（仅原始数据，工具链分割在 Round 结束时处理）。"""
+        """Implementation details."""
         op = Operation(
             tool_name=tool_name,
             args_summary=str(args)[:200],
@@ -155,13 +132,13 @@ class JobManager:
 
     def record_operation_to_current_round(self, tool_name: str, args: dict,
                                           result: str, is_error: bool) -> None:
-        """便捷方法：记录到当前 Round。"""
+        """Implementation details."""
         if self._active_job and self._active_job.rounds:
             self.record_operation(
                 self._active_job.rounds[-1], tool_name, args, result, is_error)
 
     async def end_round(self, round_id: str, agent_response: str = "") -> None:
-        """结束 Round：更新 ended_at + agent_response。"""
+        """Implementation details."""
         from datetime import datetime
         try:
             await self.db.execute(
@@ -177,13 +154,7 @@ class JobManager:
         freeze_preference_writeback: bool = False,
         progress_callback: Any = None,
     ) -> dict[str, Any]:
-        """结束 Job：触发 Consolidation + 释放 WM。
-
-        Args:
-            slide_html_dir: 最终 PPT 的 HTML 文件目录路径。
-                           指纹+多模态分析仅在 Consolidation 时对该目录下的最终 HTML 执行。
-            freeze_preference_writeback: 是否冻结偏好写回，仅保留非偏好归档。
-        """
+        """Implementation details."""
         if self._active_job is None:
             return {
                 "status": "nothing_to_save",
@@ -414,7 +385,7 @@ class JobManager:
         slide_html_dir: str = "",
         freeze_preference_writeback: bool = False,
     ) -> Path | None:
-        """Consolidation 失败时保存备份。"""
+        """Implementation details."""
         try:
             backup_dir = self._workspace / ".memory"
             backup_dir.mkdir(parents=True, exist_ok=True)
@@ -508,7 +479,7 @@ class JobManager:
         return job, wm, freeze_preference_writeback
 
     async def _retry_pending_consolidation(self, user_id: str) -> None:
-        """检测 pending 文件并重试 consolidation。"""
+        """Implementation details."""
         if not self._consolidator:
             return
         try:

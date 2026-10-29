@@ -1,20 +1,4 @@
-"""DebugTracer — 记忆系统数据流可观测性基础设施
-
-Stage 4 之后，活跃的主链路中间产物主要落在 `.memory/rounds/`
-与 ArtifactDumper 输出中。`.memory/extractions/` 仅保留给历史
-调试/兼容场景；本文件仅维护 `debug/` 下的事件流、dashboard
-与诊断快照，不再维护旧版 `debug/extractions/` 目录。
-
-输出文件结构:
-    .memory/
-    ├── rounds/                   # 主链路 Round 产物
-    ├── extractions/              # 历史调试产物（可选）
-    └── debug/
-        ├── events.jsonl          # 事件流
-        ├── dashboard.json        # 系统状态
-        ├── episodes_snapshot.json
-        └── memory_evolution.json
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -28,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _safe_serialize(obj: Any) -> Any:
-    """将任意对象转为可 JSON 序列化的形式"""
+    """Implementation details."""
     if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
     if isinstance(obj, (list, tuple)):
@@ -44,14 +28,7 @@ def _safe_serialize(obj: Any) -> Any:
 
 
 class DebugTracer:
-    """记忆系统数据流追踪器
-
-    使用方式:
-        tracer = DebugTracer(workspace / ".memory" / "debug")
-        tracer.log_event("session_created", {"session_id": "abc"})
-        tracer.log_step(turn=1, step_name="intent", data=intent_result)
-        tracer.update_dashboard("session", {"phase": "interactive"})
-    """
+    """Implementation details."""
 
     def __init__(self, debug_dir: Path | str):
         self.debug_dir = Path(debug_dir)
@@ -63,13 +40,13 @@ class DebugTracer:
         self._dashboard: dict[str, Any] = {}
         self._memory_evolution: list[dict] = []
 
-        # 确保目录存在
+
         self.debug_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── 事件流 ──
+
 
     def log_event(self, event_type: str, data: dict | None = None) -> None:
-        """追加一条事件到 events.jsonl"""
+        """Implementation details."""
         event = {
             "timestamp": datetime.now().isoformat(),
             "event": event_type,
@@ -81,13 +58,10 @@ class DebugTracer:
         except Exception as e:
             logger.warning(f"DebugTracer.log_event failed: {e}")
 
-    # ── Pipeline 步骤 ──
+
 
     def log_step(self, turn: int, step_name: str, data: Any) -> None:
-        """记录 pipeline 步骤到 events.jsonl
-
-        Stage 4 重构: 不再写入单独文件，改为追加到 events.jsonl 统一事件流。
-        """
+        """Implementation details."""
         self.log_event(f"step:{step_name}", {
             "turn": turn,
             "step": step_name,
@@ -119,15 +93,10 @@ class DebugTracer:
         return None
 
 
-    # ── Dashboard 快照 ──
+
 
     def update_dashboard(self, section: str, data: dict) -> None:
-        """更新 dashboard.json 的某个区域
-
-        Args:
-            section: 区域名（如 session / memory / rules / agent）
-            data: 该区域的最新数据
-        """
+        """Implementation details."""
         self._dashboard[section] = _safe_serialize(data)
         self._dashboard["last_updated"] = datetime.now().isoformat()
         try:
@@ -138,14 +107,10 @@ class DebugTracer:
         except Exception as e:
             logger.warning(f"DebugTracer.update_dashboard failed: {e}")
 
-    # ── Stage 2: Per-turn artifacts (Stage 4: 已迁移到 RoundArtifactWriter) ──
+
 
     def log_collected_round(self, turn: int, compact_round: Any) -> None:
-        """记录本轮 MemoryCollector 采集结果 → turn_NNN_collected.json
-
-        Stage 4 注意: 此方法已废弃，完整数据已迁移到 rounds/round_NNN/agent_round.json
-        保留此方法以兼容旧代码。
-        """
+        """Implementation details."""
         try:
             segments_summary = []
             for seg in getattr(compact_round, "segments", []):
@@ -174,7 +139,7 @@ class DebugTracer:
             logger.warning("DebugTracer.log_collected_round failed: %s", e)
 
     def log_retrieval(self, turn: int, query: str, results: list) -> None:
-        """记录 HybridRetriever 检索详情 → turn_NNN_retrieval.json"""
+        """Implementation details."""
         try:
             merged_items = []
             for r in (results or []):
@@ -203,11 +168,7 @@ class DebugTracer:
             logger.warning("DebugTracer.log_retrieval failed: %s", e)
 
     def log_cognitive_injection(self, turn: int, injection_detail: dict) -> None:
-        """记录认知记忆注入详情 → turn_NNN_cognitive_injection.json
-
-        Stage 4 注意: 此方法已废弃，完整数据已迁移到 rounds/round_NNN/memory_injection.txt
-        保留此方法以兼容旧代码。
-        """
+        """Implementation details."""
         try:
             self.log_step(turn, "cognitive_injection", injection_detail)
             self.log_event("cognitive_injection", {
@@ -219,7 +180,7 @@ class DebugTracer:
             logger.warning("DebugTracer.log_cognitive_injection failed: %s", e)
 
     def log_extraction_trigger(self, turn: int, triggered: bool, reason: dict) -> None:
-        """记录是否触发了 Episode 提取 → turn_NNN_extraction_trigger.json"""
+        """Implementation details."""
         try:
             data = {"triggered": triggered, **reason}
             self.log_step(turn, "extraction_trigger", data)
@@ -232,10 +193,10 @@ class DebugTracer:
         except Exception as e:
             logger.warning("DebugTracer.log_extraction_trigger failed: %s", e)
 
-    # ── Stage 2: Extraction batch trace (Stage 4: 已迁移到 ExtractionArtifactWriter) ──
+
 
     def log_extraction_batch(self, batch_id: int, stage: str, data: Any) -> None:
-        """兼容旧调用，不再写入 `debug/extractions/` 文件。"""
+        """Implementation details."""
         if stage == "stored":
             stored_count = data.get("stored_count", 0) if isinstance(data, dict) else 0
             self.log_event("extraction_completed", {
@@ -246,7 +207,7 @@ class DebugTracer:
     # ── Stage 2: Episode snapshot ──
 
     async def dump_episodes_snapshot(self, episode_store: Any, user_id: str = "default") -> None:
-        """导出当前 EpisodeStore 到 episodes_snapshot.json"""
+        """Implementation details."""
         try:
             episodes_data = []
             by_status: dict[str, int] = {}
@@ -283,10 +244,10 @@ class DebugTracer:
         except Exception as e:
             logger.warning("DebugTracer.dump_episodes_snapshot failed: %s", e)
 
-    # ── 工具方法 ──
+
 
     def get_recent_events(self, n: int = 20) -> list[dict]:
-        """读取最近 n 条事件"""
+        """Implementation details."""
         if not self.events_file.exists():
             return []
         try:
@@ -296,7 +257,7 @@ class DebugTracer:
             return []
 
     def get_dashboard(self) -> dict:
-        """读取当前 dashboard 数据"""
+        """Implementation details."""
         if not self.dashboard_file.exists():
             return {}
         try:
@@ -307,16 +268,9 @@ class DebugTracer:
     # ── Layer 3: Memory Evolution cumulative view ──
 
     def append_memory_evolution(self, snapshot: dict) -> None:
-        """追加一轮的 memory 快照到 memory_evolution.json
-
-        这是一个累积视图，展示从 Turn 1 到当前的所有轮次的 memory 演变。
-        每次调用会追加一个新的 turn snapshot 并重写整个文件。
-
-        Args:
-            snapshot: 包含 turn、timestamp、user_message、memory_snapshot 的字典
-        """
+        """Implementation details."""
         try:
-            # 首次调用：尝试从文件加载已有数据
+
             if not self._memory_evolution and self.memory_evolution_file.exists():
                 try:
                     existing = json.loads(
@@ -327,16 +281,16 @@ class DebugTracer:
                 except Exception:
                     pass
 
-            # 追加新快照
+
             self._memory_evolution.append(_safe_serialize(snapshot))
 
-            # 写回文件
+
             self.memory_evolution_file.write_text(
                 json.dumps(self._memory_evolution, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
 
-            # 记录事件
+
             self.log_event("memory_evolution_updated", {
                 "turn": snapshot.get("turn", 0),
                 "total_turns": len(self._memory_evolution),

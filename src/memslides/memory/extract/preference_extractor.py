@@ -1,9 +1,4 @@
-"""
-PreferenceExtractor — 偏好提取器
-
-入口:
-- extract_from_round(): 从 CompactRound 交互数据中提取偏好
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -21,10 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class PreferenceExtractor:
-    """偏好提取器
-
-    从交互历史 (round_data) 提取偏好 — 原 AtomicPreferenceExtractor
-    """
+    """Implementation details."""
 
     def __init__(
         self,
@@ -47,7 +39,7 @@ class PreferenceExtractor:
         user_id: str,
         session_id: str = "",
     ) -> list[AtomicPreference]:
-        """从单轮交互数据中提取偏好并存储"""
+        """Implementation details."""
         if not self.llm:
             logger.warning("PreferenceExtractor: no LLM, skipping round extraction")
             return []
@@ -88,10 +80,10 @@ class PreferenceExtractor:
             logger.warning(f"Preference extraction from round failed: {e}")
             return []
 
-    # ── 内部方法 ──
+
 
     async def _store_preferences(self, preferences: list[AtomicPreference]):
-        """批量存储偏好"""
+        """Implementation details."""
         if self.store and preferences:
             for pref in preferences:
                 try:
@@ -112,7 +104,7 @@ class PreferenceExtractor:
 
     @staticmethod
     def _parse_preferences(response_text: str, user_id: str, session_id: str = "") -> list[AtomicPreference]:
-        """解析 LLM 输出为 AtomicPreference 列表"""
+        """Implementation details."""
         preferences = []
         try:
             json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
@@ -154,10 +146,7 @@ class PreferenceExtractor:
         user_id: str,
         session_id: str = "",
     ) -> list[AtomicPreference]:
-        """从 DesignEpisode 列表中批量提取偏好并存储。
-
-        将每个 DesignEpisode 适配为 round_data 结构后调用 extract_from_round()。
-        """
+        """Implementation details."""
         all_prefs: list[AtomicPreference] = []
         for ep in episodes:
             try:
@@ -170,7 +159,7 @@ class PreferenceExtractor:
 
 
 class _EpisodeAsRound:
-    """将 DesignEpisode 适配为 extract_from_round() 所需的 round_data 接口。"""
+    """Implementation details."""
 
     def __init__(self, episode: Any) -> None:
         # DesignEpisode fields: user_intent, design_insight, action_outcome
@@ -184,5 +173,5 @@ class _EpisodeAsRound:
         self.tool_calls = []
 
 
-# ── 向后兼容别名 ──
+
 AtomicPreferenceExtractor = PreferenceExtractor

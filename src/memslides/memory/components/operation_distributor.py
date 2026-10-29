@@ -1,13 +1,4 @@
-"""OperationDistributor — Operation 级记忆分发（重构版）
-
-两层检索策略：
-1. 签名粗筛（SQL LIKE）— 通过 ChainStore.query_experiences_by_tool_with_embeddings
-2. 向量精排（cosine similarity）— keyword_embedding vs 当前上下文向量
-
-降级策略：
-- embedding_func 不可用 → 按 confidence 排序
-- 无 embedding 的条目排在有 embedding 的条目之后
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -40,7 +31,7 @@ def _has_embedding_vector(value: Any) -> bool:
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    """计算两个向量的余弦相似度。"""
+    """Implementation details."""
     if not _has_embedding_vector(a) or not _has_embedding_vector(b) or len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
@@ -52,7 +43,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 class OperationDistributor:
-    """Operation 级记忆分发器 — 两层检索。"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -78,11 +69,7 @@ class OperationDistributor:
         tool_args: dict | None = None,
         context: dict | None = None,
     ) -> str:
-        """为单个 Operation 生成记忆注入文本。
-
-        两层检索：签名粗筛 + 向量精排。
-        空字符串表示无相关记忆。
-        """
+        """Implementation details."""
         if not self._enable_ltm_tool_experience_injection:
             return ""
 
@@ -90,7 +77,7 @@ class OperationDistributor:
         if results:
             return self._format_chain_experiences(results)
 
-        # 降级：走旧路径（WM cache + RoundCache）
+
         if self._wm and self._chain_store:
             try:
                 await self._wm.chain_buffer.query_or_cache_from_ltm(
@@ -112,7 +99,7 @@ class OperationDistributor:
         tool_args: dict | None = None,
         context: dict | None = None,
     ) -> dict[str, str]:
-        """返回各组件的独立文本，供 injection trace 使用。"""
+        """Implementation details."""
         result: dict[str, str] = {
             "ltm_tool_experiences": "",
             "combined": "",
@@ -121,7 +108,7 @@ class OperationDistributor:
         if not self._enable_ltm_tool_experience_injection:
             return result
 
-        # 两层检索
+
         results = await self._two_layer_retrieve(tool_name, tool_args, context)
         if results:
             exp_text = self._format_chain_experiences(results)
@@ -130,7 +117,7 @@ class OperationDistributor:
                 result["combined"] = exp_text
                 return result
 
-        # 降级：走旧路径
+
         if self._wm and self._chain_store:
             try:
                 await self._wm.chain_buffer.query_or_cache_from_ltm(
@@ -156,12 +143,12 @@ class OperationDistributor:
         tool_args: dict | None = None,
         context: dict | None = None,
     ) -> list:
-        """两层检索：签名粗筛 + 向量精排。"""
+        """Implementation details."""
         if not self._chain_store:
             return []
 
         try:
-            # 第一层：签名粗筛
+
             candidates = await self._chain_store.query_experiences_by_tool_with_embeddings(
                 tool_name, self._user_id, limit=TOOL_EXP_CANDIDATE_LIMIT,
             )
@@ -172,7 +159,7 @@ class OperationDistributor:
             query_text = self._build_query_text(tool_name, tool_args, context)
             query_terms = self._tokenize(query_text)
 
-            # 第二层：向量精排
+
             if self._embedding_func and any(_has_embedding_vector(emb) for _, emb in candidates):
                 try:
                     query_vec = await self._embedding_func([query_text])
@@ -470,7 +457,7 @@ class OperationDistributor:
         return [item["exp"] for item in selected[:target_k]]
 
     def _format_tool_experiences(self, exps: list) -> str:
-        """格式化工具经验。区分 ChainExperience 和 ExperienceTrace，降级为简单格式。"""
+        """Implementation details."""
         try:
             from ..core.models import ChainExperience
             chain_exps = [e for e in exps if isinstance(e, ChainExperience)]
@@ -490,7 +477,7 @@ class OperationDistributor:
         return self._format_chain_experiences(exps)
 
     def _format_chain_experiences(self, exps: list) -> str:
-        """压缩格式化 ChainExperience，避免多变体注入时 prompt 爆炸。"""
+        """Implementation details."""
         lines = ["## 工具使用经验"]
         for e in exps:
             role = self._classify_experience_role(e)

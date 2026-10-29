@@ -1,14 +1,4 @@
-"""
-OfflineMemoryConsolidator — 离线记忆整合组件
-
-功能：
-1. 去重：删除完全相同的 lessons_learned / design_insight / preference
-2. 聚类：将语义相似的记忆分组（与簇内所有成员比较）
-3. 合并：使用 LLM 将相似记忆合并为更抽象的总结
-4. 重建索引：更新向量索引和 BM25 索引
-
-触发时机：Session 启动时（独立 DB 连接）或 CLI 手动触发
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -21,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════
-# 合并提示词
+
 # ═══════════════════════════════════════════════
 
 MERGE_EXPERIENCES_PROMPT = """你是一个记忆整合专家。请将以下相似的工具使用经验合并为一条更抽象、更通用的经验总结。
@@ -51,19 +41,19 @@ MERGE_EXPERIENCES_PROMPT = """你是一个记忆整合专家。请将以下相�
 
 @dataclass
 class ConsolidationStats:
-    """整合统计"""
+    """Implementation details."""
     total_before: int = 0
     duplicates_removed: int = 0
     clusters_found: int = 0
     merged_count: int = 0
     total_after: int = 0
     errors: list[str] = None
-    # Episode 整合统计
+
     episodes_before: int = 0
     episodes_duplicates: int = 0
     episodes_merged: int = 0
     episodes_after: int = 0
-    # Preference 整合统计
+
     preferences_before: int = 0
     preferences_duplicates: int = 0
     preferences_merged: int = 0
@@ -97,18 +87,12 @@ class ConsolidationStats:
 
 
 class OfflineMemoryConsolidator:
-    """离线记忆整合器
+    """Implementation details."""
 
-    整合策略：
-    1. 精确去重：lessons_learned 完全相同的记录合并（保留 reuse_count 最高的）
-    2. 语义聚类：使用向量相似度聚类相似记忆
-    3. LLM 合并：将同一聚类的记忆合并为更抽象的总结
-    """
 
-    # 整合阈值
-    SIMILARITY_THRESHOLD = 0.8  # 向量相似度阈值（降低以合并更多相似记忆）
-    MIN_CLUSTER_SIZE = 2         # 最小聚类大小
-    MAX_CLUSTER_SIZE = 5         # 最大聚类大小（避免 LLM 输入过长）
+    SIMILARITY_THRESHOLD = 0.8
+    MIN_CLUSTER_SIZE = 2
+    MAX_CLUSTER_SIZE = 5
 
     def __init__(
         self,
@@ -125,18 +109,18 @@ class OfflineMemoryConsolidator:
         self._bm25_store = bm25_store
 
     async def _ensure_db_healthy(self) -> bool:
-        """检查数据库是否健康，执行 WAL checkpoint"""
+        """Implementation details."""
         if not self._db:
             return False
 
         try:
-            # 执行 integrity check
+
             result = await self._db.query("PRAGMA integrity_check")
             if not result or result[0].get("integrity_check") != "ok":
                 logger.error("Database integrity check failed")
                 return False
 
-            # 额外检查 experience_traces FTS 索引可读性
+
             try:
                 await self._db.query_one("SELECT COUNT(*) AS cnt FROM experience_traces_fts")
             except Exception as fts_error:
@@ -150,7 +134,7 @@ class OfflineMemoryConsolidator:
                 else:
                     raise
 
-            # 执行 WAL checkpoint 确保数据一致
+
             await self._db.execute("PRAGMA wal_checkpoint(PASSIVE)")
             logger.debug("Database health check passed")
             return True
@@ -163,7 +147,7 @@ class OfflineMemoryConsolidator:
         return "database disk image is malformed" in str(error).lower()
 
     async def _repair_experience_fts(self) -> bool:
-        """重建 experience_traces 的 FTS 索引与触发器。"""
+        """Implementation details."""
         if not self._db:
             return False
 
@@ -173,10 +157,10 @@ class OfflineMemoryConsolidator:
             await self._db.execute("DROP TRIGGER IF EXISTS experience_traces_fts_au")
             await self._db.execute("DROP TABLE IF EXISTS experience_traces_fts")
 
-            # 复用 schema 初始化重建表和触发器
+
             await self._db.init_schema()
 
-            # 从 content 表重新构建 FTS 索引
+
             await self._db.execute(
                 "INSERT INTO experience_traces_fts(experience_traces_fts) VALUES('rebuild')"
             )
@@ -187,15 +171,15 @@ class OfflineMemoryConsolidator:
             return False
 
     async def consolidate(self, user_id: str = "default") -> ConsolidationStats:
-        """执行完整的记忆整合流程（ExperienceTrace + Episode + Preference）"""
+        """Implementation details."""
         stats = ConsolidationStats()
 
-        # ═══ 前置检查：确保数据库健康 ═══
+
         if not await self._ensure_db_healthy():
             stats.errors.append("database_unhealthy")
             return stats
 
-        # ═══ Part 1: ExperienceTrace 整合 ═══
+
         experiences = await self._load_experiences(user_id)
         stats.total_before = len(experiences)
 
@@ -204,7 +188,7 @@ class OfflineMemoryConsolidator:
             stats.duplicates_removed = removed
             logger.info("Consolidator: removed %d exact duplicates (experiences)", removed)
 
-            # 写回合并后的 reuse_count
+
             for exp_id, total_reuse in reuse_updates.items():
                 try:
                     await self._db.execute(
@@ -214,14 +198,14 @@ class OfflineMemoryConsolidator:
                 except Exception as e:
                     logger.warning("Failed to update reuse_count for %s: %s", exp_id, e)
 
-            # 删除重复记录
+
             if ids_to_delete:
                 try:
                     await self._delete_experiences(ids_to_delete)
                 except Exception as e:
                     logger.warning("Failed to delete experience duplicates: %s", e)
 
-            # 语义聚类 + LLM 合并
+
             if self._embed and len(unique_experiences) >= 2:
                 try:
                     clusters = await self._cluster_by_similarity(unique_experiences)
@@ -238,7 +222,7 @@ class OfflineMemoryConsolidator:
         final_experiences = await self._load_experiences(user_id)
         stats.total_after = len(final_experiences)
 
-        # ═══ Part 2: Episode 整合 ═══
+
         try:
             ep_stats = await self._consolidate_episodes(user_id)
             stats.episodes_before = ep_stats.get("before", 0)
@@ -250,7 +234,7 @@ class OfflineMemoryConsolidator:
             logger.warning("Consolidator: episode consolidation failed: %s", e)
             stats.errors.append(f"episodes: {e}")
 
-        # ═══ Part 3: Preference 整合 ═══
+
         try:
             pref_stats = await self._consolidate_preferences(user_id)
             stats.preferences_before = pref_stats.get("before", 0)
@@ -262,7 +246,7 @@ class OfflineMemoryConsolidator:
             logger.warning("Consolidator: preference consolidation failed: %s", e)
             stats.errors.append(f"preferences: {e}")
 
-        # ═══ Part 4: 重建索引 ═══
+
         try:
             await self._rebuild_indexes(user_id)
         except Exception as e:
@@ -272,7 +256,7 @@ class OfflineMemoryConsolidator:
         return stats
 
     async def _load_experiences(self, user_id: str) -> list[dict]:
-        """从数据库加载指定用户的所有 ExperienceTrace"""
+        """Implementation details."""
         if not self._db:
             return []
 
@@ -293,17 +277,8 @@ class OfflineMemoryConsolidator:
             return []
 
     def _deduplicate_exact(self, experiences: list[dict]) -> tuple[list[dict], int, list[str], dict[str, int]]:
-        """精确去重：lessons_learned 完全相同的记录只保留一条
+        """Implementation details."""
 
-        保留策略：
-        1. 优先保留 reuse_count 最高的
-        2. 相同时保留最新的
-
-        Returns:
-            (unique_experiences, removed_count, ids_to_delete, reuse_updates)
-            reuse_updates: {id: merged_reuse_count} 需要写回 DB 的合并计数
-        """
-        # 按 lessons_learned 分组
         groups: dict[str, list[dict]] = {}
         for exp in experiences:
             key = (exp.get("lessons_learned", "") or "").strip()
@@ -323,7 +298,7 @@ class OfflineMemoryConsolidator:
             if len(group) == 1:
                 unique.append(group[0])
             else:
-                # 选择最佳：reuse_count 最高，然后最新
+
                 sorted_group = sorted(
                     group,
                     key=lambda x: (x.get("reuse_count", 0), x.get("created_at", "")),
@@ -331,7 +306,7 @@ class OfflineMemoryConsolidator:
                 )
                 best = sorted_group[0]
 
-                # 合并 reuse_count，记录需要写回 DB 的值
+
                 total_reuse = sum(g.get("reuse_count", 0) for g in group)
                 best["reuse_count"] = total_reuse
                 reuse_updates[best["id"]] = total_reuse
@@ -343,8 +318,7 @@ class OfflineMemoryConsolidator:
         return unique, removed, ids_to_delete, reuse_updates
 
     async def _delete_experiences(self, ids: list[str]) -> bool:
-        """删除指定的 experience 记录
-        """
+        """Implementation details."""
         if not self._db or not ids:
             return True
 
@@ -374,7 +348,7 @@ class OfflineMemoryConsolidator:
             return False
 
     async def _cluster_by_similarity(self, experiences: list[dict]) -> list[list[dict]]:
-        """使用向量相似度聚类相似记忆（与锚点及所有已入簇成员比较）"""
+        """Implementation details."""
         if not self._embed or len(experiences) < 2:
             return [[exp] for exp in experiences]
 
@@ -400,7 +374,7 @@ class OfflineMemoryConsolidator:
             for j in range(i + 1, n):
                 if used[j] or len(cluster) >= self.MAX_CLUSTER_SIZE:
                     continue
-                # 与簇内所有成员比较，全部超过阈值才加入
+
                 if all(
                     self._cosine_similarity(cluster_vecs[k], vectors[j]) >= self.SIMILARITY_THRESHOLD
                     for k in range(len(cluster_vecs))
@@ -415,10 +389,10 @@ class OfflineMemoryConsolidator:
 
     @staticmethod
     def _cosine_similarity(v1, v2) -> float:
-        """计算余弦相似度（支持 numpy 数组和 list）"""
+        """Implementation details."""
         import numpy as np
 
-        # 转换为 numpy 数组
+
         a1 = np.array(v1).flatten() if hasattr(v1, '__iter__') else np.array([v1])
         a2 = np.array(v2).flatten() if hasattr(v2, '__iter__') else np.array([v2])
 
@@ -434,7 +408,7 @@ class OfflineMemoryConsolidator:
         return float(np.dot(a1, a2) / (norm1 * norm2))
 
     async def _merge_clusters(self, clusters: list[list[dict]]) -> int:
-        """使用 LLM 合并聚类"""
+        """Implementation details."""
         if not self._llm:
             return 0
 
@@ -445,7 +419,7 @@ class OfflineMemoryConsolidator:
                 continue
 
             try:
-                # 构建 prompt
+
                 experiences_text = "\n\n".join([
                     f"### 经验 {i+1}\n"
                     f"- 任务: {exp.get('task_description', '')[:100]}\n"
@@ -457,17 +431,17 @@ class OfflineMemoryConsolidator:
                 prompt = MERGE_EXPERIENCES_PROMPT.format(experiences_text=experiences_text)
                 response = await self._llm(prompt)
 
-                # 解析响应
+
                 merged = self._parse_merge_response(response)
                 if not merged:
                     continue
 
-                # 更新主记录为合并结果
+
                 updated = await self._create_merged_experience(cluster, merged)
                 if not updated:
                     continue
 
-                # 删除其余旧记录（保留主记录）
+
                 old_ids = [exp["id"] for exp in cluster[1:]]
                 if old_ids and not await self._delete_experiences(old_ids):
                     continue
@@ -480,10 +454,10 @@ class OfflineMemoryConsolidator:
         return merged_count
 
     def _parse_merge_response(self, response: str) -> dict | None:
-        """解析 LLM 合并响应"""
+        """Implementation details."""
         import re
 
-        # 尝试提取 JSON
+
         json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
         if json_match:
             try:
@@ -491,7 +465,7 @@ class OfflineMemoryConsolidator:
             except json.JSONDecodeError:
                 pass
 
-        # 尝试直接解析
+
         try:
             return json.loads(response)
         except json.JSONDecodeError:
@@ -504,7 +478,7 @@ class OfflineMemoryConsolidator:
         cluster: list[dict],
         merged: dict,
     ) -> bool:
-        """策略：不创建新记录，而是更新第一条记录的 lessons_learned"""
+        """Implementation details."""
         if not self._db or not cluster:
             return False
 
@@ -537,15 +511,15 @@ class OfflineMemoryConsolidator:
             return False
 
     async def _rebuild_indexes(self, user_id: str) -> None:
-        """重建向量索引和 BM25 索引"""
+        """Implementation details."""
         experiences = await self._load_experiences(user_id)
         if self._vector_store and self._embed:
             try:
-                # 清空旧索引
+
                 if hasattr(self._vector_store, 'delete_collection'):
                     await self._vector_store.delete_collection("experiences")
 
-                # 重建
+
                 for exp in experiences:
                     lesson = exp.get("lessons_learned", "")
                     if lesson:
@@ -575,17 +549,17 @@ class OfflineMemoryConsolidator:
                 logger.warning("BM25 index rebuild failed: %s", e)
 
     # ═══════════════════════════════════════════════
-    # Episode 整合
+
     # ═══════════════════════════════════════════════
 
     async def _consolidate_episodes(self, user_id: str) -> dict:
-        """整合 DesignEpisode：去重 + 语义聚类 + 合并"""
+        """Implementation details."""
         stats = {"before": 0, "duplicates": 0, "merged": 0, "after": 0}
 
         if not self._db:
             return stats
 
-        # 加载所有 episodes
+
         try:
             rows = await self._db.query(
                 """SELECT id, user_id, session_id, source_round_id, user_intent,
@@ -605,7 +579,7 @@ class OfflineMemoryConsolidator:
             stats["after"] = len(episodes)
             return stats
 
-        # 精确去重：design_insight 完全相同
+
         groups: dict[str, list[dict]] = {}
         for ep in episodes:
             key = (ep.get("design_insight", "") or "").strip()
@@ -618,12 +592,12 @@ class OfflineMemoryConsolidator:
         ids_to_delete = []
         for key, group in groups.items():
             if len(group) > 1:
-                # 保留最新的
+
                 sorted_group = sorted(group, key=lambda x: x.get("created_at", ""), reverse=True)
                 ids_to_delete.extend([g["id"] for g in sorted_group[1:]])
                 stats["duplicates"] += len(sorted_group) - 1
 
-        # 删除重复
+
         deleted_ids: set[str] = set()
         if ids_to_delete:
             placeholders = ",".join("?" * len(ids_to_delete))
@@ -636,7 +610,7 @@ class OfflineMemoryConsolidator:
             except Exception as e:
                 logger.warning("Failed to delete duplicate episodes: %s", e)
 
-        # 语义聚类 + LLM 合并
+
         if self._embed and self._llm:
             remaining_episodes = [ep for ep in episodes if ep["id"] not in deleted_ids]
             if len(remaining_episodes) >= 2:
@@ -646,7 +620,7 @@ class OfflineMemoryConsolidator:
                 except Exception as e:
                     logger.warning("Episode merging failed: %s", e)
 
-        # 统计最终数量
+
         try:
             result = await self._db.query_one(
                 "SELECT COUNT(*) as cnt FROM design_episodes WHERE user_id = ? AND status = 'active'",
@@ -659,7 +633,7 @@ class OfflineMemoryConsolidator:
         return stats
 
     async def _merge_similar_episodes(self, episodes: list[dict], user_id: str) -> int:
-        """合并语义相似的 Episodes"""
+        """Implementation details."""
         if not self._embed or len(episodes) < 2:
             return 0
 
@@ -691,14 +665,14 @@ class OfflineMemoryConsolidator:
                     used[j] = True
             clusters.append(cluster)
 
-        # 合并聚类
+
         merged_count = 0
         for cluster in clusters:
             if len(cluster) < self.MIN_CLUSTER_SIZE:
                 continue
 
             try:
-                # 保留第一个，更新其 design_insight
+
                 primary = cluster[0]
                 insights_text = "\n".join([
                     f"- {ep.get('design_insight', '')}" for ep in cluster
@@ -713,13 +687,13 @@ class OfflineMemoryConsolidator:
                 merged_insight = await self._llm(prompt)
                 merged_insight = merged_insight.strip()[:300]
 
-                # 更新主记录
+
                 await self._db.execute(
                     "UPDATE design_episodes SET design_insight = ? WHERE id = ?",
                     (merged_insight, primary["id"])
                 )
 
-                # 删除其他记录
+
                 other_ids = [ep["id"] for ep in cluster[1:]]
                 if other_ids:
                     placeholders = ",".join("?" * len(other_ids))
@@ -735,17 +709,17 @@ class OfflineMemoryConsolidator:
         return merged_count
 
     # ═══════════════════════════════════════════════
-    # Preference 整合
+
     # ═══════════════════════════════════════════════
 
     async def _consolidate_preferences(self, user_id: str) -> dict:
-        """整合 AtomicPreference：去重 + 语义聚类 + 合并"""
+        """Implementation details."""
         stats = {"before": 0, "duplicates": 0, "merged": 0, "after": 0}
 
         if not self._db:
             return stats
 
-        # 加载所有 preferences（包含 scope 字段）
+
         try:
             rows = await self._db.query(
                 """SELECT id, user_id, preference_type, preference, confidence,
@@ -765,7 +739,7 @@ class OfflineMemoryConsolidator:
             stats["after"] = len(preferences)
             return stats
 
-        # 精确去重：preference + scope + scope_value 全部相同才算重复
+
         groups: dict[tuple, list[dict]] = {}
         for pref in preferences:
             pref_text = (pref.get("preference", "") or "").strip()
@@ -783,12 +757,12 @@ class OfflineMemoryConsolidator:
         ids_to_delete = []
         for key, group in groups.items():
             if len(group) > 1:
-                # 保留 confidence 最高的
+
                 sorted_group = sorted(group, key=lambda x: x.get("confidence", 0), reverse=True)
                 ids_to_delete.extend([g["id"] for g in sorted_group[1:]])
                 stats["duplicates"] += len(sorted_group) - 1
 
-        # 删除重复
+
         deleted_ids: set[str] = set()
         if ids_to_delete:
             placeholders = ",".join("?" * len(ids_to_delete))
@@ -801,7 +775,7 @@ class OfflineMemoryConsolidator:
             except Exception as e:
                 logger.warning("Failed to delete duplicate preferences: %s", e)
 
-        # 语义聚类 + LLM 合并
+
         if self._embed and self._llm:
             remaining = [p for p in preferences if p["id"] not in deleted_ids]
             if len(remaining) >= 2:
@@ -811,7 +785,7 @@ class OfflineMemoryConsolidator:
                 except Exception as e:
                     logger.warning("Preference merging failed: %s", e)
 
-        # 统计最终数量
+
         try:
             result = await self._db.query_one(
                 "SELECT COUNT(*) as cnt FROM atomic_preferences WHERE user_id = ?",
@@ -824,12 +798,12 @@ class OfflineMemoryConsolidator:
         return stats
 
     async def _merge_similar_preferences(self, preferences: list[dict], user_id: str) -> int:
-        """合并语义相似的 Preferences"""
+        """Implementation details."""
         if not self._embed or len(preferences) < 2:
             return 0
 
-        # 按 (preference_type, scope, scope_value) 分组
-        # 不同 scope 的偏好绝不合并（全局偏好与页面类型偏好是独立的）
+
+
         by_type: dict[tuple, list[dict]] = {}
         for pref in preferences:
             group_key = (
@@ -847,14 +821,14 @@ class OfflineMemoryConsolidator:
             if len(type_prefs) < 2:
                 continue
 
-            # 获取向量
+
             texts = [p.get("preference", "") or "" for p in type_prefs]
             try:
                 vectors = await self._embed(texts)
             except Exception:
                 continue
 
-            # 聚类（与簇内所有成员比较）
+
             n = len(type_prefs)
             used = [False] * n
             clusters: list[list[dict]] = []
@@ -877,7 +851,7 @@ class OfflineMemoryConsolidator:
                         used[j] = True
                 clusters.append(cluster)
 
-            # 合并
+
             for cluster in clusters:
                 if len(cluster) < self.MIN_CLUSTER_SIZE:
                     continue
@@ -895,14 +869,14 @@ class OfflineMemoryConsolidator:
                     merged_text = await self._llm(prompt)
                     merged_text = merged_text.strip()[:200]
 
-                    # 更新主记录，合并 confidence
+
                     max_conf = max(p.get("confidence", 0.5) for p in cluster)
                     await self._db.execute(
                         "UPDATE atomic_preferences SET preference = ?, confidence = ? WHERE id = ?",
                         (merged_text, min(max_conf + 0.1, 1.0), primary["id"])
                     )
 
-                    # 删除其他
+
                     other_ids = [p["id"] for p in cluster[1:]]
                     if other_ids:
                         placeholders = ",".join("?" * len(other_ids))

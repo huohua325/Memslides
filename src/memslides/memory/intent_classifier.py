@@ -1,7 +1,4 @@
-"""IntentClassifier — LLM 意图分类器
-
-用于 modify 流程路由：判断用户消息的目标幻灯片和操作类型。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -17,7 +14,7 @@ LLMCallable = Any  # async callable(prompt: str) -> str
 
 
 class IntentClassifier:
-    """LLM 意图分类器"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -38,11 +35,7 @@ class IntentClassifier:
         context_messages: list[dict] | None = None,
         current_slide: str = "",
     ) -> dict:
-        """分类用户消息意图
-
-        Returns:
-            {"intent_type": str, "confidence": float, "target_slide": str, "modification_description": str}
-        """
+        """Implementation details."""
         prompt = build_intent_classification_prompt(
             user_message, context_messages, current_slide
         )

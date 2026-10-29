@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class SessionManager:
-    """会话管理器"""
+    """Implementation details."""
 
     def __init__(self, db: DatabaseBackend):
         self.db = db
@@ -33,11 +33,7 @@ class SessionManager:
         session_id: str | None = None,
         **kwargs,
     ) -> InteractiveSession:
-        """获取或创建Session
-
-        Args:
-            session_id: Optional explicit session ID. If None, generates a UUID.
-        """
+        """Implementation details."""
         session_key = f"{user_id}:{project_id}"
 
         if session_key in self.sessions:
@@ -46,7 +42,7 @@ class SessionManager:
                 existing.touch()
                 return existing
 
-        # 创建新Session
+
         if session_id is None:
             session_id = str(uuid4())
         session = InteractiveSession(
@@ -58,7 +54,7 @@ class SessionManager:
             **kwargs,
         )
 
-        # 记录到DB (use INSERT OR IGNORE for idempotency with global DB)
+
         try:
             existing = await self.db.query_one(
                 "SELECT id FROM sessions WHERE id = ?", (session_id,)
@@ -88,7 +84,7 @@ class SessionManager:
         return session
 
     async def end_session(self, session: InteractiveSession):
-        """结束Session"""
+        """Implementation details."""
         await session.end_session()
         session_key = f"{session.user_id}:{session.project_id}"
         self.sessions.pop(session_key, None)
@@ -101,11 +97,7 @@ class SessionManager:
         workspace: Path | str,
         **kwargs,
     ) -> InteractiveSession:
-        """检测并续接历史Session（Gap 1: Session续接机制）
-
-        当用户隔天想继续修改同一PPT时，加载上次SessionSnapshot，
-        恢复焦点状态并生成续接摘要注入新Session的system prompt。
-        """
+        """Implementation details."""
         snapshot = await self._load_latest_snapshot(user_id, project_id)
         session = await self.get_or_create_session(
             user_id, project_id, workspace, **kwargs
@@ -128,7 +120,7 @@ class SessionManager:
     async def _load_latest_snapshot(
         self, user_id: str, project_id: str
     ) -> dict | None:
-        """加载最近的SessionSnapshot"""
+        """Implementation details."""
         return await self.db.query_one(
             "SELECT * FROM session_snapshots WHERE user_id = ? AND project_id = ? "
             "ORDER BY created_at DESC LIMIT 1",
@@ -136,7 +128,7 @@ class SessionManager:
         )
 
     def _build_resume_prompt(self, snapshot: dict) -> str:
-        """基于SessionSnapshot生成续接摘要"""
+        """Implementation details."""
         parts = ["## 上次修改记录（续接上下文）"]
         if snapshot.get("modification_summary"):
             parts.append(f"修改概要：{snapshot['modification_summary']}")
@@ -147,7 +139,7 @@ class SessionManager:
         return "\n".join(parts)
 
     async def cleanup_expired(self):
-        """清理过期Session"""
+        """Implementation details."""
         expired = [k for k, s in self.sessions.items() if s.is_expired()]
         for key in expired:
             session = self.sessions.pop(key)

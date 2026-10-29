@@ -1,13 +1,4 @@
-"""UserProfileStore — 用户偏好画像存储（Design Doc §5.8, Intent-Based 扩展）
-
-SQLite 表：user_profiles (user_id, intent, profile_json, version, last_updated)
-
-Intent-Based 扩展:
-- 同一用户按 intent（academic/business/education/creative/report/default）分别存储画像
-- get/save 接口增加 intent 参数，默认 "default" 保持向后兼容
-- 新增 get_all_intents() 查询用户所有 intent 画像
-- 自动迁移：旧表（无 intent 列）的数据视为 intent="default"
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -26,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class UserProfileStore:
-    """用户偏好画像的 SQLite 存储（支持 intent 分区）。"""
+    """Implementation details."""
 
     def __init__(self, db: DatabaseBackend):
         self._db = db
@@ -35,7 +26,7 @@ class UserProfileStore:
 
     @staticmethod
     def _normalize_profile(profile: UserProfile, user_id: str) -> bool:
-        """修正旧画像载荷中的 user_id / template 字段兼容问题。"""
+        """Implementation details."""
         changed = False
         normalized_user_id = str(user_id or "").strip()
         if profile.user_id != normalized_user_id:
@@ -46,7 +37,7 @@ class UserProfileStore:
         return changed
 
     async def _ensure_profile_payload_compatibility(self) -> None:
-        """为旧 user_profiles.profile_json 回填新增字段并修复脏 user_id。"""
+        """Implementation details."""
         if self._payload_backfilled:
             return
 
@@ -94,18 +85,12 @@ class UserProfileStore:
         self._payload_backfilled = True
 
     async def ensure_schema(self) -> None:
-        """公开的 schema / payload 兼容入口。"""
+        """Implementation details."""
         await self._ensure_intent_column()
         await self._ensure_profile_payload_compatibility()
 
     async def _ensure_intent_column(self) -> None:
-        """确保 user_profiles 表有 intent 列且主键为 (user_id, intent)。
-
-        旧 schema: PRIMARY KEY (user_id)
-        新 schema: PRIMARY KEY (user_id, intent)
-
-        SQLite 不支持 ALTER PRIMARY KEY，需要重建表。
-        """
+        """Implementation details."""
         if self._migrated:
             return
         try:
@@ -114,11 +99,11 @@ class UserProfileStore:
             )
             col_names = {r["name"] for r in rows} if rows else set()
             if not col_names:
-                # 表不存在或为空，新 schema 会由 schema.sql 创建
+
                 self._migrated = True
                 return
             if "intent" not in col_names:
-                # 旧表：需要重建以支持复合主键
+
                 logger.info("Migrating user_profiles table: rebuilding with (user_id, intent) primary key")
                 await self._db.execute(
                     """CREATE TABLE IF NOT EXISTS user_profiles_new (
@@ -146,7 +131,7 @@ class UserProfileStore:
         self._migrated = True
 
     async def get(self, user_id: str, intent: str = DEFAULT_INTENT) -> UserProfile:
-        """加载指定 intent 的用户画像，不存在时返回空画像。"""
+        """Implementation details."""
         await self.ensure_schema()
         try:
             row = await self._db.query_one(
@@ -158,14 +143,14 @@ class UserProfileStore:
                 profile = UserProfile.from_dict(data)
                 self._normalize_profile(profile, user_id)
                 return profile
-            # intent 不存在时，返回空画像（不从 default 继承，避免污染新 intent）
-            # ProfileInjectionRouter 会在空维度上自动 skip
+
+
         except Exception as e:
             logger.warning(f"Failed to load user profile for {user_id}/{intent}: {e}")
         return UserProfile(user_id=user_id)
 
     async def save(self, profile: UserProfile, intent: str = DEFAULT_INTENT) -> None:
-        """保存用户画像到指定 intent（INSERT OR REPLACE）。"""
+        """Implementation details."""
         await self.ensure_schema()
         self._normalize_profile(profile, profile.user_id)
         profile.version += 1
@@ -187,7 +172,7 @@ class UserProfileStore:
             logger.warning(f"Failed to save user profile for {profile.user_id}/{intent}: {e}")
 
     async def get_all_intents(self, user_id: str) -> IntentProfile:
-        """加载用户所有 intent 的画像。"""
+        """Implementation details."""
         await self.ensure_schema()
         ip = IntentProfile(user_id=user_id)
         try:
@@ -207,7 +192,7 @@ class UserProfileStore:
         return ip
 
     async def list_intents(self, user_id: str) -> list[str]:
-        """列出用户已有的所有 intent。"""
+        """Implementation details."""
         await self.ensure_schema()
         try:
             rows = await self._db.query(

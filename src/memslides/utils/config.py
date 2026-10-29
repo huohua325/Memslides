@@ -139,7 +139,7 @@ def _align_image_size(width: int, height: int, pixel_multiple: int) -> tuple[int
 
 
 def _extract_slide_key_from_tool(from_tool: Any) -> str | None:
-    """从 from_tool (Function 对象或 dict) 中提取 slide 文件名作为去重 key。"""
+    """Implementation details."""
     if from_tool is None:
         return None
     if hasattr(from_tool, "arguments"):
@@ -188,11 +188,9 @@ def _normalize_role_for_api(role: Any) -> str:
 
 
 def _find_latest_image_tids(messages: list) -> set[str]:
-    """扫描 chat history（newest→oldest），返回每个 slide 最新图片对应的 tool_call_id 集合。
-    无法识别 slide 身份的图片（非 slide 工具返回的图片）也全部保留。
-    """
+    """Implementation details."""
     slide_to_latest: dict[str, str] = {}  # slide_key → latest tool_call_id
-    unknown_tids: set[str] = set()       # 无法识别 slide 的图片，全部保留
+    unknown_tids: set[str] = set()
     for msg in reversed(messages):
         try:
             d = _dump_message_for_api(msg)
@@ -842,27 +840,27 @@ class EmbeddingConfig(BaseModel):
     )
     dim: int = Field(
         default=1024,
-        description="Embedding 向量维度 (BGE-M3=1024, OpenAI small=1536)",
+        description="Embedding vector dimension (BGE-M3=1024, OpenAI small=1536)",
     )
     device: str = Field(
         default="auto",
-        description="推理设备: 'auto' | 'cuda' | 'cpu' (local sentence-transformers providers)",
+        description="Inference device: 'auto' | 'cuda' | 'cpu' (local sentence-transformers providers)",
     )
     batch_size: int = Field(
         default=32,
-        description="批处理大小 (local sentence-transformers providers)",
+        description="Batch size (local sentence-transformers providers)",
     )
     max_length: int = Field(
         default=512,
-        description="最大 token 长度 (reserved for local embedding providers)",
+        description="Maximum token length (reserved for local embedding providers)",
     )
     cache_enabled: bool = Field(
         default=True,
-        description="是否启用 LRU 缓存",
+        description="Enable the LRU cache",
     )
     cache_size: int = Field(
         default=512,
-        description="LRU 缓存最大条目数",
+        description="Maximum entries in the LRU cache",
     )
     base_url: str = Field(
         default="",
@@ -907,8 +905,8 @@ class GCConfig(BaseModel):
 class ToolMemoryConfig(BaseModel):
     """Tool memory configuration for chain store limits"""
 
-    max_raw_chains_per_key: int = Field(default=20, description="每个签名下最多保留的原始链数据条数")
-    max_ltm_experiences_per_tool: int = Field(default=10, description="每个 tool_name 从 LTM 最多拉取的经验条数")
+    max_raw_chains_per_key: int = Field(default=20, description="Maximum raw chain records retained per signature")
+    max_ltm_experiences_per_tool: int = Field(default=10, description="Maximum LTM experiences loaded per tool name")
 
 
 class VisualAssetConfig(BaseModel):
@@ -958,7 +956,7 @@ class MemoryConfig(BaseModel):
     )
     llm: dict[str, str] = Field(
         default_factory=dict,
-        description="Memory-call-type → model-ref routing for memory subsystem LLM calls",
+        description="Routes memory call types to model references",
     )
     embedding: EmbeddingConfig | None = Field(default=None, description="Embedding model config")
     db_path: str = Field(default=".memory/memory.db", description="SQLite database path (per-session fallback)")
@@ -982,7 +980,7 @@ class MemoryConfig(BaseModel):
     )
     memory_v2: bool = Field(
         default=False,
-        description="Enable WM + 双 LTM memory architecture (Stage 12). When True, MemoryOrchestrator manages memory lifecycle.",
+        description="Enable the working-memory plus dual-LTM architecture. MemoryOrchestrator manages its lifecycle when enabled.",
     )
     artifact_trace: bool = Field(
         default=False,
@@ -1025,7 +1023,7 @@ class MemSlidesConfig(BaseModel):
         default=None, description="Text-to-image model configuration"
     )
 
-    # 额外 LLM 配置（如 fast_model、balanced_model 等自定义 key）
+
     extra_llms: dict[str, LLM] = Field(
         default_factory=dict,
         description="Additional LLM configs from YAML (keys not matching declared fields)",

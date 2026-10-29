@@ -1,8 +1,4 @@
-"""MemoryOrchestrator — 编排层（Design Doc §7）
-
-协调 WM / LTM / RoundCache / Distributor 的统一接口。
-提供给 AgentLoop 的 on_job_start/end, on_round_start/end, on_operation_complete 等方法。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -145,7 +141,7 @@ CONSOLIDATION_HEURISTIC_RELATED_THRESHOLD = 0.38
 
 
 class MemoryOrchestrator:
-    """编排层 — 协调所有记忆组件的统一接口。"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -180,10 +176,10 @@ class MemoryOrchestrator:
     ):
         self._db = db
         self._job_mgr = job_manager
-        # Stage 14: _exp_writer 即 tool_memory_retriever（ExperienceTraceWriter 实例）
-        # 用于 on_round_end 自动提取经验 → WM
+
+
         self._exp_writer = tool_memory_retriever
-        # preference_store 不再使用，保留参数以兼容调用方
+
         del preference_store
         self._profile_store = profile_store
         self._user_state_resolver = user_state_resolver
@@ -201,8 +197,8 @@ class MemoryOrchestrator:
         self._artifact_dumper = artifact_dumper
         self._round_start_time: str = ""
         self._op_counter: int = 0
-        self._current_round_index: int = 0  # 统一的 round_index，避免 injection_traces 和 rounds 不对齐
-        # Stage 12: DimensionMatcher 惰性创建，供 RoundCache 维度筛选
+        self._current_round_index: int = 0
+
         self._dim_matcher = None
         self._embedding_func = embedding_func
         self._enable_profile_injection = enable_profile_injection
@@ -323,10 +319,10 @@ class MemoryOrchestrator:
             if key not in {"user_id", "version", "last_updated"}
         )
 
-        # 注：指纹+多模态分析已移至 Consolidation 阶段，仅针对最终 PPT。
-        # VLM 由 Consolidator 直接持有，MemoryOrchestrator 不再引用。
 
-    # ── Job 生命周期 ──
+
+
+
 
     async def on_job_start(
         self,
@@ -338,17 +334,7 @@ class MemoryOrchestrator:
         write_intent: str = "",
         core_persona: str = "",
     ) -> None:
-        """Job 开始：创建 Job + ProfileInjectionRouter 路由 + 初始化 WM + 从 LTM 预加载经验。
-
-        Args:
-            user_id: 用户 ID
-            project_id: 项目 ID
-            user_prompt: 用户第一轮 prompt（用于 ProfileInjectionRouter 路由）
-            intent: 当前任务 intent（如 "academic"/"business"），空字符串时自动推断
-            read_intent: 画像读取 intent
-            write_intent: 画像写回 intent
-            core_persona: 用户稳定人格
-        """
+        """Implementation details."""
         if not intent and user_prompt:
             from .core.models import classify_intent_by_keywords
             intent = classify_intent_by_keywords(user_prompt)
@@ -370,7 +356,7 @@ class MemoryOrchestrator:
         self._profile_execution_plan = None
         self._profile_realization_report = None
 
-        # Stage 15: ProfileInjectionRouter 智能路由（LTM UserProfile → WM TempPreference）
+
         if self._enable_profile_injection and self._profile_store and user_prompt:
             await self._route_and_inject_profile(
                 user_id,
@@ -381,7 +367,7 @@ class MemoryOrchestrator:
                 core_persona=core_persona,
             )
 
-        # Stage 13: 从 LTM 预加载相关经验到 WM
+
         if self._enable_experience_preload:
             await self._preload_experiences_from_ltm(user_id, project_id, user_prompt=user_prompt)
 
@@ -391,13 +377,7 @@ class MemoryOrchestrator:
         freeze_preference_writeback: bool = False,
         progress_callback: Any = None,
     ) -> dict[str, Any]:
-        """Job 结束：合并 WM 经验到 LTM + 触发 Consolidation + 释放 WM。
-
-        Args:
-            slide_html_dir: 最终 PPT 的 HTML 文件目录路径。
-                           指纹+多模态分析仅在 Consolidation 时对该目录下的最终 HTML 执行。
-            freeze_preference_writeback: 是否冻结偏好写回，仅保留工具/episode 等非偏好归档。
-        """
+        """Implementation details."""
         from .progress import emit_memory_save_progress
 
         preference_written_first = False
@@ -416,8 +396,8 @@ class MemoryOrchestrator:
             )
             preference_written_first = str(pref_result.get("status") or "") == "written"
 
-        # Stage 13: 合并 WM 临时经验到 LTM。放在画像写回之后，
-        # 避免大量经验聚类/LLM 合并阻塞用户偏好持久化。
+
+
         await emit_memory_save_progress(
             progress_callback,
             stage="round_experience_writeback",
@@ -451,7 +431,7 @@ class MemoryOrchestrator:
         self._profile_realization_report = None
         return result
 
-    # ── Round 生命周期 ──
+
 
     async def on_round_start(
         self,
@@ -465,22 +445,14 @@ class MemoryOrchestrator:
         retrieval_stats: dict | None = None,
         intent: str = "",
     ) -> None:
-        """Round 开始：创建 Round + 检索记忆 + 构建 RoundCache + 偏好提取。
-
-        Args:
-            memory_injection: 压缩版记忆注入文本 (≤500字符)
-            memory_injection_full: 完整记忆注入文本
-            agent_name: Agent 名称 (research/design/modify)
-            retrieval_stats: 检索统计信息 (ap_value, et_tool_error 等)
-            intent: 用户意图（如 "academic"），空字符串时由 RoundCache 自动推断
-        """
+        """Implementation details."""
         if self._job_mgr:
             await self._job_mgr.start_round(user_message)
 
         if not intent and self._job_mgr and self._job_mgr._active_job:
             intent = self._job_mgr._active_job.intent or ""
 
-        # 确定当前 Round 的 1-based index（在 start_round 之后，此时 Round 已添加到 Job）
+
         self._current_round_index = self._job_mgr.round_count() if self._job_mgr else 1
 
         self._current_round_tool_log = []
@@ -491,7 +463,7 @@ class MemoryOrchestrator:
 
         wm = self._job_mgr.working_memory if self._job_mgr else None
 
-        # 惰性创建 DimensionMatcher（首次 Round 时初始化，后续复用）
+
         if self._dim_matcher is None and self._embedding_func is not None:
             try:
                 from .core.dimension_matcher import DimensionMatcher
@@ -499,14 +471,14 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.debug("DimensionMatcher creation failed (non-fatal): %s", e)
 
-        # 构建 RoundCache 并加载（使用统一的 round_index）
+
         round_index = self._current_round_index
         self._round_cache = RoundCache(
             profile_store=self._profile_store,
             working_memory=wm,
             dimension_matcher=self._dim_matcher,
         )
-        # 注入 ArtifactDumper 和 round_index 用于中间产物记录
+
         self._round_cache._artifact_dumper = self._artifact_dumper
         self._round_cache._round_index = round_index
         try:
@@ -540,13 +512,13 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"Collector begin_round failed: {e}")
 
-        # (dump_memory_injection 已移除，由 dump_injection_trace 替代)
+
 
     async def on_round_end(self, agent_response: str = "", compact_round: Any = None) -> None:
-        """Round 结束：Episode 提取 + RoundSummary + 工具链分割 + 经验提取。"""
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
 
-        # Stage 12: 更新 Round 数据库记录（SQLite 表名暂保留 tasks）
+
         if self._job_mgr:
             try:
                 round_id = self._job_mgr.current_round_id()
@@ -563,7 +535,7 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"Collector end_round failed: {e}")
 
-        # 1. Episode 提取
+
         design_episode = None
         if compact_round and self._episode_extractor and wm:
             try:
@@ -594,7 +566,7 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"Episode extraction failed (non-fatal): {e}")
 
-        # 2. 生成 RoundSummary
+
         round_summary = None
         if wm and self._job_mgr and self._job_mgr._active_job:
             try:
@@ -611,7 +583,7 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"RoundSummary generation failed (non-fatal): {e}")
 
-        # ArtifactDumper: RoundSummary 产物
+
         if self._artifact_dumper and round_summary:
             try:
                 round_index = (len(self._job_mgr._active_job.rounds)
@@ -620,8 +592,8 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"ArtifactDumper dump_round_summary failed (non-fatal): {e}")
 
-        # 3. 工具链分割（纯累积，不触发经验提取）
-        #    使用完整的 rich traces（reasoning + tool_call + observation）
+
+
         _segmented_chains = None
         _rich_traces = None
         if compact_round and self._chain_segmenter and wm and self._enable_chain_experience_collection:
@@ -630,7 +602,7 @@ class MemoryOrchestrator:
 
                 round_id = self._job_mgr.current_round_id() if self._job_mgr else ""
 
-                # 从 _current_round_tool_log 构建 rich traces
+
                 _rich_traces = []
                 for tl in self._current_round_tool_log:
                     _rich_traces.append(build_rich_trace(
@@ -648,7 +620,7 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"Chain segmentation failed (non-fatal): {e}")
 
-        # ArtifactDumper: 工具链分割产物 + rich_traces
+
         if self._artifact_dumper:
             try:
                 round_index = (len(self._job_mgr._active_job.rounds)
@@ -664,10 +636,10 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"ArtifactDumper dump_chain/traces failed (non-fatal): {e}")
 
-        # 4. 注：指纹+多模态分析已移至 Consolidation 阶段，仅针对最终 PPT。
-        # mid-job 不再构建快照 / 采集视觉指纹。
 
-        # 5. ArtifactDumper — 转储 Round 级中间产物
+
+
+
         if self._artifact_dumper:
             try:
                 from datetime import datetime
@@ -701,7 +673,7 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.warning(f"ArtifactDumper on_round_end failed (non-fatal): {e}")
 
-        # 6. Stage 14/15: 自动提取经验 → 仅写入 WM，LTM 统一在 job_end consolidation
+
         if self._enable_wm_experience_collection and self._exp_writer and wm:
             try:
                 session_id = ""
@@ -711,14 +683,14 @@ class MemoryOrchestrator:
                 _outcome = "partial" if has_errors else "success"
 
                 if compact_round:
-                    # 路径 A: 有 compact_round (from_agent_round)
+
                     round_experiences = await self._exp_writer.extract_to_round_experiences(
                         agent_round=compact_round,
                         session_id=session_id,
                         outcome=_outcome,
                     )
                 elif self._current_round_tool_log:
-                    # 路径 B: 无 compact_round，用 tool_calls_log
+
                     current_round = (
                         self._job_mgr._active_job.rounds[-1]
                         if self._job_mgr and self._job_mgr._active_job and self._job_mgr._active_job.rounds
@@ -745,7 +717,7 @@ class MemoryOrchestrator:
     async def _extract_chain_experiences(
         self, chain_name: str, batch: list,
     ) -> list:
-        """从同名链批次中提取经验。"""
+        """Implementation details."""
         if not self._llm:
             return []
         try:
@@ -756,7 +728,7 @@ class MemoryOrchestrator:
             logger.warning(f"Chain experience extraction failed: {e}")
             return []
 
-    # ── Operation 级 ──
+
 
     async def get_memory_for_operation(
         self,
@@ -764,7 +736,7 @@ class MemoryOrchestrator:
         tool_args: dict | None = None,
         context: dict | None = None,
     ) -> str:
-        """为 Operation 获取记忆注入文本。"""
+        """Implementation details."""
         if self._distributor is None:
             return ""
         try:
@@ -772,7 +744,7 @@ class MemoryOrchestrator:
                 tool_name, tool_args, context,
             )
             result = structured.get("combined", "")
-            # ArtifactDumper — 转储 Operation 级中间产物（统一使用 dump_injection_trace）
+
             if self._artifact_dumper:
                 try:
                     round_index = (len(self._job_mgr._active_job.rounds)
@@ -809,14 +781,7 @@ class MemoryOrchestrator:
         reasoning: str = "",
         reason_source: str = "",
     ) -> None:
-        """Operation 完成：记录到 Round + Collector + 本地日志。
-
-        当 is_error=True 时，额外将错误封装为 ChainExperience 写入 WM chain_buffer，
-        使同一 Round 内后续 Operation 能通过 OperationDistributor 立即感知到此错误。
-
-        Args:
-            reasoning: Agent 在调用此工具前的推理内容（reasoning_content），完整保留。
-        """
+        """Implementation details."""
         args_dict = args if isinstance(args, dict) else {}
         current_round = (
             self._job_mgr._active_job.rounds[-1]
@@ -853,13 +818,13 @@ class MemoryOrchestrator:
                     name=tool_name, args=str(args),
                     result=result[:2000], is_error=is_error, duration_ms=duration_ms,
                 )
-                # collector 保留真实的模型可观测理由；合成理由仅进入 rich traces
+
                 if normalized_reason and normalized_source != "synthesized_from_tool_context":
                     self._collector.add_reasoning(normalized_reason)
             except Exception:
                 pass
 
-        # 即时注入：工具错误 → WM chain_buffer，供本 Round 后续 Operation 查询
+
         if is_error and self._enable_chain_experience_collection:
             wm = self._job_mgr.working_memory if self._job_mgr else None
             if wm:
@@ -886,13 +851,7 @@ class MemoryOrchestrator:
         scope: str = "global",
         structured_data: dict[str, Any] | None = None,
     ) -> None:
-        """用户显式表达偏好时写入 WM。
-
-        如果调用方未提供 dimension，自动推断：
-        1. DimensionMatcher 向量匹配（如果可用）
-        2. UserProfile.match_dimension() 关键词降级
-        3. 都匹配不到 → dimension 留空，归档时落入 general
-        """
+        """Implementation details."""
         if not self._enable_wm_preference_collection:
             return
 
@@ -915,7 +874,7 @@ class MemoryOrchestrator:
         )
         persist_live_wm_snapshot_from_orchestrator(self, reason="user_preference")
 
-        # 刷新 RoundCache 的 WM 偏好缓存，消除 1 轮注入延迟
+
         if self._round_cache is not None:
             self._round_cache.refresh_wm_preferences()
 
@@ -926,18 +885,7 @@ class MemoryOrchestrator:
         keywords: list[str] | None = None,
         category: str = "tool_error",
     ) -> None:
-        """remember_lesson 工具调用时写入 WM (Stage 14)。
-
-        Agent 调用 remember_lesson MCP 工具后，由 _tool_result_callback 触发此方法，
-        将经验写入 WM 的 RoundExperience，供后续 Round 检索注入。
-        不再双写 LTM，LTM 持久化统一由 Job 结束时 _consolidate_experiences_to_ltm() 处理。
-
-        Args:
-            content: 经验内容
-            tool_name: 相关工具名
-            keywords: 检索关键词（用于向量匹配）
-            category: 分类 - "tool_error" | "tool_misuse" | "tool_limitation" | "pattern"
-        """
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if not wm:
             logger.debug("on_remember_lesson: no WM available, skipping")
@@ -946,7 +894,7 @@ class MemoryOrchestrator:
             logger.debug("on_remember_lesson: WM experience collection disabled, skipping")
             return
 
-        # 自动生成 keywords（如果未提供）
+
         if not keywords:
             keywords = self._auto_generate_keywords(content, tool_name)
 
@@ -967,7 +915,7 @@ class MemoryOrchestrator:
         args: str = "",
         error_msg: str = "",
     ) -> None:
-        """工具失败时即时写入 WM RoundExperience。"""
+        """Implementation details."""
         if not self._enable_wm_experience_collection:
             return
         if not tool_name:
@@ -990,7 +938,7 @@ class MemoryOrchestrator:
             logger.info("[MemoryV2] on_tool_error → WM: %s", exp.content[:80])
 
     def add_round_experiences(self, experiences: list[RoundExperience]) -> int:
-        """统一将外部生成的 RoundExperience 写入 WM，并做轻量去重。"""
+        """Implementation details."""
         if not self._enable_wm_experience_collection:
             return 0
         wm = self._job_mgr.working_memory if self._job_mgr else None
@@ -1042,12 +990,12 @@ class MemoryOrchestrator:
 
     @staticmethod
     def _auto_generate_keywords(content: str, tool_name: str) -> list[str]:
-        """从 content 和 tool_name 自动提取关键词"""
+        """Implementation details."""
         keywords = []
         if tool_name:
             keywords.append(tool_name)
 
-        # 常见模式词
+
         patterns = [
             "overflow", "layout", "spacing", "font", "color", "image",
             "text", "title", "card", "grid", "flex", "margin", "padding",
@@ -1059,11 +1007,11 @@ class MemoryOrchestrator:
             if p in content_lower:
                 keywords.append(p)
 
-        return keywords[:10]  # 限制数量
+        return keywords[:10]
 
     async def _infer_dimension(self, text: str) -> str:
-        """推断偏好文本的维度：向量匹配 → 关键词降级 → 空字符串。"""
-        # 1. DimensionMatcher 向量匹配
+        """Implementation details."""
+
         if self._dim_matcher is not None:
             try:
                 dim = await self._dim_matcher.match(text)
@@ -1072,7 +1020,7 @@ class MemoryOrchestrator:
             except Exception as e:
                 logger.debug("DimensionMatcher failed in _infer_dimension: %s", e)
 
-        # 2. 关键词降级：用 UserProfile 的静态关键词
+
         if self._profile_store:
             try:
                 from .core.models import UserProfile
@@ -1086,7 +1034,7 @@ class MemoryOrchestrator:
         return ""
 
     def get_wm_general_rules_text(self) -> str:
-        """高优先级输出当前 WM 中的 general 规则。"""
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if not wm or not wm._temp_preferences:
             return ""
@@ -1130,7 +1078,7 @@ class MemoryOrchestrator:
         )
 
     def get_wm_structured_rules_text(self) -> str:
-        """输出 current WM 中可机读的结构化规则 JSONL。"""
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if not wm or not wm._temp_preferences:
             return ""
@@ -1186,16 +1134,7 @@ class MemoryOrchestrator:
         *,
         include_general: bool = False,
     ) -> str:
-        """获取 WM 中当前生效的临时偏好文本（每轮注入用）。
-
-        WM 偏好优先级高于 LTM UserProfile：反映当前 Job 内用户的最新意图。
-
-        Args:
-            relevant_dims: 维度筛选集合（来自 RoundCache 的 DimensionMatcher 结果）。
-                           None 表示全量注入（WM 偏好数量有限，全量注入是合理的兜底）。
-                           非 None 时只注入匹配维度 + 无维度标签的偏好。
-            include_general: 是否把 general 一并混入偏好文本；默认关闭，由独立 general block 承载。
-        """
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if not wm or not wm._temp_preferences:
             return ""
@@ -1203,7 +1142,7 @@ class MemoryOrchestrator:
         if not active:
             return ""
 
-        # 维度筛选（与 RoundCache.search_preferences_by_dimension 同口径）
+
         if relevant_dims is not None:
             filtered = []
             for p in active:
@@ -1216,13 +1155,13 @@ class MemoryOrchestrator:
             if not active:
                 return ""
 
-        # 按一级维度分组，结构化展示
+
         from collections import defaultdict
         dim_groups: dict[str, list] = defaultdict(list)
         for p in active:
             if not include_general and (p.dimension.split(".")[0] if p.dimension else "") in {"", "general"}:
                 continue
-            # 提取一级维度：theme.primary_colors → Theme
+
             full_dim = p.dimension if p.dimension else "general"
             top_level = full_dim.split(".")[0].capitalize() if "." in full_dim else full_dim.capitalize()
             if full_dim == "general":
@@ -1233,7 +1172,7 @@ class MemoryOrchestrator:
             else:
                 dim_groups[top_level].append((p.content, full_dim))
 
-        # 按固定顺序排列维度
+
         if not dim_groups:
             return ""
         dim_order = ["Theme", "Visual", "Layout", "Content", "Template", "General"]
@@ -1244,10 +1183,10 @@ class MemoryOrchestrator:
             prefs = dim_groups[dim_key]
             lines.append(f"  [{dim_key}]")
             for content, full_dim in prefs:
-                # 显示完整维度路径作为标注
+
                 dim_suffix = f" ({full_dim})" if full_dim != dim_key.lower() else ""
                 lines.append(f"    - {content}{dim_suffix}")
-        # 处理未知维度
+
         for dim_key in sorted(dim_groups.keys()):
             if dim_key not in dim_order:
                 prefs = dim_groups[dim_key]
@@ -1258,7 +1197,7 @@ class MemoryOrchestrator:
         return "\n".join(lines)
 
     def get_round_history_prompt(self) -> str:
-        """获取 Round 历史摘要 prompt。"""
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if wm:
             return wm.job_history.build_context_prompt()
@@ -1337,7 +1276,7 @@ class MemoryOrchestrator:
         )
 
     def _build_memory_execution_brief(self) -> str:
-        """把当前 active WM 偏好压缩成更易执行的前置摘要。"""
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if not wm or not wm._temp_preferences:
             return ""
@@ -1523,32 +1462,7 @@ class MemoryOrchestrator:
         user_message: str = "",
         agent_name: str = "",
     ) -> dict[str, str]:
-        """返回各记忆组件的独立文本（供 injection trace 完整记录）。
-
-        5 个组件（按优先级排序）：
-        - wm_preferences:       WM 临时偏好（ProfileInjectionRouter 注入的画像 + 当前 Job 偏好）
-        - profile_execution_contract: 仅 design 阶段可见的画像执行合同（页级义务）
-        - profile_execution_plan: 仅 design 阶段可见的逐页 persona 执行计划
-        - wm_experiences:       WM 临时经验（remember_lesson 写入，当前 Job 内即时生效）
-        - ltm_tool_experiences: 工具链经验文本（LTM）— 仅在 Operation 级别按工具名匹配
-        - wm_round_history:     轮次历史摘要（RoundSummary via JobHistory）
-
-        注意：
-        - ProfileInjectionRouter 在 Job 开始时将 LTM UserProfile 按维度写入 WM，
-          因此所有阶段都通过 wm_preferences 统一获取偏好。
-        - AtomicPreference 不注入 prompt，仅用于更新 UserProfile。
-        - ltm_tool_experiences 在 System 级别为空（tool_name="*" 时无法匹配），
-          仅在 Operation 级别按具体工具名实时匹配。
-
-        Returns:
-            {
-                "wm_preferences": ...,
-                "wm_experiences": ...,
-                "ltm_tool_experiences": ...,
-                "wm_round_history": ...,
-                "combined": ...,
-            }
-        """
+        """Implementation details."""
         result: dict[str, str] = {
             "wm_general_rules": "",
             "wm_rule_specs": "",
@@ -1561,9 +1475,9 @@ class MemoryOrchestrator:
             "combined": "",
         }
 
-        # WM 偏好 — 统一注入入口
-        # ProfileInjectionRouter 已将画像按维度写入 WM（标记为 ltm_profile_inject / profile_override），
-        # 因此所有阶段（Research/Design/Modify）都通过 wm_preferences 获取偏好。
+
+
+
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if self._enable_wm_preference_injection:
             result["wm_general_rules"] = self.get_wm_general_rules_text()
@@ -1575,11 +1489,11 @@ class MemoryOrchestrator:
             result["profile_execution_contract"] = self.get_profile_execution_contract_text(agent_name)
             result["profile_execution_plan"] = self.get_profile_execution_plan_text(agent_name)
 
-        # WM 经验（remember_lesson / auto_extract / preload）
+
         if self._enable_wm_experience_injection and wm and wm._temp_experiences:
             candidate_pool_size = min(len(wm._temp_experiences), TASK_EXPERIENCE_CANDIDATE_POOL)
 
-            # 先取更大的相关候选池，再按类别平衡选择实际注入条目
+
             if user_message:
                 matched_exps = await wm.search_experiences_by_keywords(
                     user_message,
@@ -1599,7 +1513,7 @@ class MemoryOrchestrator:
                     if e.tool_name:
                         tool_terms.append(e.tool_name)
                     tool_terms.extend(e.keywords[:2])
-                enhanced_query = " ".join(dict.fromkeys(tool_terms))  # 去重保序
+                enhanced_query = " ".join(dict.fromkeys(tool_terms))
                 if enhanced_query:
                     secondary = await wm.search_experiences_by_keywords(
                         enhanced_query,
@@ -1619,14 +1533,14 @@ class MemoryOrchestrator:
                 if selected_exps:
                     result["wm_experiences"] = self._format_wm_experiences(selected_exps)
 
-        # ltm_tool_experiences: System 级别不注入（tool_name="*" 无法匹配具体工具）
-        # 仅在 Operation 级别通过 OperationDistributor 按工具名实时匹配
 
-        # WM 轮次历史
+
+
+
         if self._enable_wm_round_history_injection:
             result["wm_round_history"] = self.get_round_history_prompt()
 
-        # 拼接。即使当前还没有可注入的偏好/经验，也显式告诉主模型当前使用的记忆桶。
+
         memory_execution_brief = self._build_memory_execution_brief()
         persona_task_contract = self._build_persona_task_contract()
         memory_context_meta = self._build_memory_context_meta()
@@ -1646,7 +1560,7 @@ class MemoryOrchestrator:
         return result
 
     def _format_wm_experiences(self, experiences: list[RoundExperience]) -> str:
-        """格式化 WM 经验为注入 prompt 文本"""
+        """Implementation details."""
         if not experiences:
             return ""
         lines = ['<working_memory_experiences priority="high" note="当前会话经验，优先级高于历史经验">']
@@ -1720,7 +1634,7 @@ class MemoryOrchestrator:
         fill_categories: set[str] | None = None,
         max_per_category: dict[str, int] | None = None,
     ) -> list[Any]:
-        """按类别配额从已排序候选中做平衡选择。"""
+        """Implementation details."""
         if not items or total_limit <= 0:
             return []
 
@@ -1779,7 +1693,7 @@ class MemoryOrchestrator:
         )
 
     def _select_preload_rows(self, ranked_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """从重排后的 LTM 候选中选择平衡的 preload 集合。"""
+        """Implementation details."""
         eligible_rows = [
             row for row in ranked_rows
             if self._row_experience_type(row) not in {"chain", "agent_run"}
@@ -1808,7 +1722,7 @@ class MemoryOrchestrator:
         self,
         ranked_experiences: list[RoundExperience],
     ) -> list[RoundExperience]:
-        """从已排序 WM 经验中按类别平衡选择注入条目。"""
+        """Implementation details."""
         ranked_experiences = [
             exp for exp in ranked_experiences
             if not self._is_stale_structural_tool_limitation_text(
@@ -1860,7 +1774,7 @@ class MemoryOrchestrator:
         """Deprecated compatibility wrapper for round experience selection."""
         return self._select_round_injection_experiences(ranked_experiences)
 
-    # ── Stage 14: WM 经验 ↔ LTM 同步 ──
+
 
     async def _consolidate_experiences_to_ltm(
         self,
@@ -1868,7 +1782,7 @@ class MemoryOrchestrator:
         progress_start: int = 10,
         progress_end: int = 30,
     ) -> None:
-        """Job 结束时统一归档 WM RoundExperience → LTM。"""
+        """Implementation details."""
         from .progress import emit_memory_save_progress
 
         if not self._enable_round_experience_writeback:
@@ -1937,7 +1851,7 @@ class MemoryOrchestrator:
         session_id = ""
         if self._job_mgr and self._job_mgr._active_job:
             active_job = self._job_mgr._active_job
-            # ExperienceTrace.session_id 应绑定到真实 session/project，而不是瞬时 job UUID。
+
             session_id = getattr(active_job, "project_id", "") or getattr(active_job, "id", "")
 
         for category, bucket in grouped.items():
@@ -1995,7 +1909,7 @@ class MemoryOrchestrator:
         cluster_index: int = 0,
         cluster_total: int = 0,
     ) -> "ExperienceTrace | None":
-        """将单个 cluster 与已有 LTM 近邻对齐后写入。"""
+        """Implementation details."""
         from .core.models import ExperienceTrace
 
         if not experiences:
@@ -2169,7 +2083,7 @@ class MemoryOrchestrator:
         self,
         experiences: list[RoundExperience],
     ) -> list[list[RoundExperience]]:
-        """同 category 内做轻量聚类，避免整桶强行合并。"""
+        """Implementation details."""
         if not experiences:
             return []
 
@@ -2548,19 +2462,11 @@ class MemoryOrchestrator:
         category: str,
         experiences: list[RoundExperience],
     ) -> str:
-        """使用 LLM 合并同类经验。
-
-        Args:
-            category: 经验类别
-            experiences: 待合并的 RoundExperience 列表
-
-        Returns:
-            合并后的经验文本，LLM 失败返回空字符串
-        """
+        """Implementation details."""
         if not self._llm:
             return ""
 
-        # 构建 prompt
+
         exp_texts = "\n".join(f"- [{e.tool_name or 'general'}] {e.content}" for e in experiences)
         prompt = f"""你是经验合并助手。以下是同一类别（{category}）的多条经验记录，请合并成简洁的教训。
 
@@ -2581,7 +2487,7 @@ class MemoryOrchestrator:
                 response = await self._llm(prompt)
                 text = str(response).strip() if response else ""
             except Exception:
-                # 兼容 llm.run() 接口
+
                 response = await self._llm.run(
                     messages=[{"role": "user", "content": prompt}],
                 )
@@ -2592,13 +2498,13 @@ class MemoryOrchestrator:
             return ""
 
     async def _write_experience_to_ltm(self, trace: "ExperienceTrace") -> bool:
-        """写入 ExperienceTrace 到 SQLite experience_traces 表。"""
+        """Implementation details."""
         if not self._db:
             logger.debug("_write_experience_to_ltm: no DB available")
             return False
 
         try:
-            # 确保 session 存在（FK 约束）
+
             existing = await self._db.query_one(
                 "SELECT id FROM sessions WHERE id = ?", (trace.session_id,)
             )
@@ -2635,22 +2541,7 @@ class MemoryOrchestrator:
         write_intent: str = "",
         core_persona: str = "",
     ) -> None:
-        """使用 ProfileInjectionRouter 将 LTM UserProfile 智能注入到 WM。
-
-        Stage 15: 实现架构图中的 Job Start 智能路由流程：
-        1. 从 LTM 加载 UserProfile (intent-aware)
-        2. ProfileInjectionRouter.route() 判断每个维度的注入策略
-           - INJECT: 用户未提及，LTM 值直接沿用
-           - OVERRIDE: 用户明确冲突，只用新值
-           - ENRICH: 用户补充细化，LTM + 新值共存
-           - SKIP: 无数据且未提及，不注入
-        3. apply() 将决策结果写入 WM TempPreference
-        4. 保存中间产物（routing decisions）
-
-        Args:
-            user_id: 用户 ID
-            user_prompt: 用户第一轮 prompt
-        """
+        """Implementation details."""
         from .inject.profile_injection_router import ProfileInjectionRouter, ProfileInjectionRoutingError
         from .core.models import classify_intent_by_keywords
 
@@ -2664,7 +2555,7 @@ class MemoryOrchestrator:
             core_persona,
         )
 
-        # 推断 intent（如果未提供）
+
         if not task_intent:
             if self._job_mgr and self._job_mgr._active_job and self._job_mgr._active_job.intent:
                 task_intent = self._job_mgr._active_job.intent
@@ -2695,7 +2586,7 @@ class MemoryOrchestrator:
                     os.environ["MEMSLIDES_PROFILE_ROUTING_DEBUG_PATH"] = str(debug_path)
                 except Exception:
                     logger.debug("Failed to configure profile routing debug artifact path", exc_info=True)
-            # 1. 从共享用户状态加载当前可读画像（core persona + current intent）
+
             profile = None
             if self._user_state_resolver is not None:
                 snapshot = await self._user_state_resolver.build_snapshot(
@@ -2723,7 +2614,7 @@ class MemoryOrchestrator:
                 write_intent,
             )
 
-            # 2. 路由决策
+
             router = ProfileInjectionRouter(
                 llm=self._profile_injection_llm or self._llm
             )
@@ -2740,14 +2631,14 @@ class MemoryOrchestrator:
                 f"ProfileInjectionRouter decisions:\n{ProfileInjectionRouter.format_decisions_for_log(decisions)}"
             )
 
-            # 3. 应用到 WM
+
             wm = self._job_mgr.working_memory if self._job_mgr else None
             if wm:
                 result_summary = await router.apply(decisions, wm, profile, llm=self._llm)
                 logger.info(f"ProfileInjectionRouter applied: {result_summary}")
                 persist_live_wm_snapshot_from_orchestrator(self, reason="profile_routing")
 
-            # 4. 保存中间产物
+
             if self._artifact_dumper and wm:
                 self._artifact_dumper.dump_profile_routing(
                     round_index=0,
@@ -2792,26 +2683,14 @@ class MemoryOrchestrator:
         project_id: str,
         user_prompt: str = "",
     ) -> None:
-        """Job 开始时：从 LTM 预加载相关经验到 WM。
-
-        检索策略:
-        1. 查询全局共享的较大高置信度候选池
-        2. 若有 user_prompt 且 embedding_func 可用，则做相似度重排
-        3. 跳过 chain / agent_run 等独立路径
-        4. 按类别配额选择 preload 集合
-        5. 转换为 RoundExperience(source="preload") 加入 WM
-
-        Args:
-            user_id: 用户 ID（保留签名兼容，不再用于 preload 过滤）
-            project_id: 项目 ID
-        """
+        """Implementation details."""
         wm = self._job_mgr.working_memory if self._job_mgr else None
         if not wm or not self._db:
             logger.debug("_preload_experiences_from_ltm: no WM or DB available")
             return
 
         try:
-            # 查询全局共享的高置信度经验候选池（tool_error 在 SQL 层仍有轻微优先级）
+
             rows = await self._db.query(
                 """
                 SELECT et.* FROM experience_traces et
@@ -2878,18 +2757,18 @@ class MemoryOrchestrator:
 
             selected_rows = self._select_preload_rows(ranked_rows)
 
-            # 转换为 RoundExperience(source="preload") 并加入 WM
+
             import json
             for row in selected_rows:
                 try:
-                    # 解析 applicable_scenarios 作为 keywords
+
                     scenarios = row.get("applicable_scenarios", "[]")
                     if isinstance(scenarios, str):
                         keywords = json.loads(scenarios)
                     else:
                         keywords = scenarios if isinstance(scenarios, list) else []
 
-                    # 解析 tools_used
+
                     tools_used_raw = row.get("tools_used", "[]")
                     if isinstance(tools_used_raw, str):
                         tools_used = json.loads(tools_used_raw)

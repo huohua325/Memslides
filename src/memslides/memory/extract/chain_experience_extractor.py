@@ -1,12 +1,4 @@
-"""ChainExperienceExtractor — 链级经验提取（重构版）
-
-核心变更：
-- distill_single: 独立蒸馏单个 ChainSegment → ChainExperience（含 keywords）
-- check_equivalence: LLM 等价判定两个 ChainExperience
-- distill_and_merge: 独立蒸馏 + 等价判定 + 合并/追加
-
-旧 extract 方法保留作为向后兼容。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -27,41 +19,30 @@ logger = logging.getLogger(__name__)
 
 
 class ChainExperienceExtractor:
-    """从工具链片段中提炼可复用经验。"""
+    """Implementation details."""
 
     def __init__(self, llm: Any = None):
         self._llm = llm
 
     async def _call_llm(self, prompt: str) -> str:
-        """兼容 callable LLM 与 `.run()` 风格的客户端。"""
+        """Implementation details."""
         return await call_llm_with_prompt(self._llm, prompt)
 
     @staticmethod
     def _extract_response_text(response: Any) -> str:
-        """从不同 LLM 返回格式中提取文本。"""
+        """Implementation details."""
         return extract_response_text(response)
 
-    # ── 新接口 ──
+
 
     async def distill_single(
         self, chain_name: str, segment: ChainSegment,
     ) -> ChainExperience | None:
-        """独立蒸馏单个 ChainSegment → ChainExperience（含 keywords）。
-
-        使用 segment.rich_traces（完整的 reasoning + tool_call + observation）
-        构建执行记录。
-
-        Args:
-            chain_name: 链签名
-            segment: 单个 ChainSegment
-
-        Returns:
-            成功时返回一个 ChainExperience，LLM 失败时返回 None。
-        """
+        """Implementation details."""
         if not self._llm:
             return None
 
-        # 使用 rich_traces 构建执行记录
+
         if segment.rich_traces:
             from .chain_segmenter import format_rich_traces_for_llm
             execution_text = format_rich_traces_for_llm(segment.rich_traces)
@@ -85,10 +66,7 @@ class ChainExperienceExtractor:
     async def check_equivalence(
         self, new_exp: ChainExperience, existing_exp: ChainExperience,
     ) -> tuple[bool, str]:
-        """LLM 等价判定，返回 (is_equivalent, merged_lesson)。
-
-        LLM 调用失败时降级为 (False, "")（视为不等价）。
-        """
+        """Implementation details."""
         if not self._llm:
             return False, ""
 
@@ -112,28 +90,21 @@ class ChainExperienceExtractor:
         self, chain_name: str, segment: ChainSegment,
         existing_experiences: list[ChainExperience],
     ) -> list[ChainExperience]:
-        """独立蒸馏 + 等价判定 + 合并/追加，返回需要写入 LTM 的经验列表。
-
-        流程：
-        1. 调用 distill_single 蒸馏新经验
-        2. 遍历 existing_experiences，对每个调用 check_equivalence
-        3. 找到等价条目 → 合并（保留已有 subkey，更新 lesson/keywords/metadata）
-        4. 无等价条目 → 生成新 subkey，追加
-        """
+        """Implementation details."""
         new_exp = await self.distill_single(chain_name, segment)
         if new_exp is None:
             return []
 
-        # 无已有条目 → 直接追加
+
         if not existing_experiences:
             new_exp.subkey = uuid4().hex[:8]
             return [new_exp]
 
-        # 遍历已有条目做等价判定
+
         for existing in existing_experiences:
             is_equiv, merged_lesson = await self.check_equivalence(new_exp, existing)
             if is_equiv:
-                # 合并：保留已有 subkey，更新内容
+
                 existing.lesson = merged_lesson or new_exp.lesson
                 existing.keywords = new_exp.keywords or existing.keywords
                 existing.source_chain_ids = list(
@@ -142,16 +113,16 @@ class ChainExperienceExtractor:
                 existing.confidence = min(1.0, existing.confidence + 0.1)
                 return [existing]
 
-        # 不等价 → 生成新 subkey 追加
+
         new_exp.subkey = uuid4().hex[:8]
         return [new_exp]
 
-    # ── 解析辅助 ──
+
 
     def _parse_distill_response(
         self, text: str, chain_name: str, source_chain_id: str,
     ) -> ChainExperience | None:
-        """解析独立蒸馏的 LLM JSON 响应。"""
+        """Implementation details."""
         text = text.strip()
         start = text.find("{")
         end = text.rfind("}")
@@ -167,9 +138,9 @@ class ChainExperienceExtractor:
             return None
 
         keywords = data.get("keywords", [])
-        # 确保 keywords 在 [3, 8] 范围内
+
         if len(keywords) < 3:
-            # 补充工具名作为关键词
+
             tool_pipeline = data.get("tool_pipeline", [])
             keywords = list(set(keywords + tool_pipeline + [chain_name]))[:8]
         keywords = keywords[:8]
@@ -185,7 +156,7 @@ class ChainExperienceExtractor:
         )
 
     def _parse_equivalence_response(self, text: str) -> tuple[bool, str]:
-        """解析等价判定的 LLM JSON 响应。"""
+        """Implementation details."""
         text = text.strip()
         start = text.find("{")
         end = text.rfind("}")
@@ -200,7 +171,7 @@ class ChainExperienceExtractor:
         merged_lesson = data.get("merged_lesson", "")
         return bool(equivalent), str(merged_lesson)
 
-    # ── 旧接口（向后兼容）──
+
 
     async def extract(
         self,
@@ -208,11 +179,11 @@ class ChainExperienceExtractor:
         chains: list[ToolChain],
         existing_experiences: list[ChainExperience] | None = None,
     ) -> list[ChainExperience]:
-        """从同名链批次中提炼经验（旧接口，保留向后兼容）。"""
+        """Implementation details."""
         if not chains or not self._llm:
             return []
 
-        # 构建已有经验段落
+
         existing_section = ""
         if existing_experiences:
             lines = ["已有经验（请在此基础上更新）："]
@@ -220,7 +191,7 @@ class ChainExperienceExtractor:
                 lines.append(f"- {exp.lesson}")
             existing_section = "\n".join(lines)
 
-        # 构建链文本
+
         from .chain_segmenter import format_rich_traces_for_llm
 
         chains_text_parts = []
@@ -254,7 +225,7 @@ class ChainExperienceExtractor:
         chain_name: str,
         source_chain_ids: list[str],
     ) -> list[ChainExperience]:
-        """解析旧接口的 LLM JSON 响应。"""
+        """Implementation details."""
         text = text.strip()
         start = text.find("{")
         end = text.rfind("}")

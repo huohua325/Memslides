@@ -1,11 +1,4 @@
-"""ChainStore — LTM 工具链存储（原始链数据 + 提炼经验）。
-
-重构版：支持同一签名下多条经验（通过 subkey 区分）+ keyword_embedding 持久化。
-
-按链签名 (chain_signature) 为键，同时存储：
-- 原始链数据 (chain_raw_data)：完整 cycle 数据
-- 提炼经验 (chain_experiences)：lesson / anti_pattern / applicable_when / keywords / embedding
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -38,7 +31,7 @@ def _embedding_json(value) -> str:
 
 
 class ChainStore:
-    """LTM 工具链存储 — 原始链数据 + 提炼经验，按签名为键。"""
+    """Implementation details."""
 
     def __init__(
         self,
@@ -124,7 +117,7 @@ class ChainStore:
         experience.inject_summary = self._build_inject_summary(experience)
         return experience
 
-    # ── 原始链数据 ──
+
 
     async def save_raw_chains(
         self,
@@ -133,7 +126,7 @@ class ChainStore:
         user_id: str,
         job_id: str,
     ) -> None:
-        """追加原始链数据，超出 max_raw_chains_per_key 淘汰最早的。"""
+        """Implementation details."""
         try:
             for chain in chains:
                 row = {
@@ -152,7 +145,7 @@ class ChainStore:
             )
 
     async def _evict_oldest(self, chain_signature: str, user_id: str) -> None:
-        """删除超出上限的最早记录。"""
+        """Implementation details."""
         rows = await self.db.query(
             f"SELECT id FROM {RAW_TABLE} "
             "WHERE chain_signature = ? AND user_id = ? "
@@ -172,7 +165,7 @@ class ChainStore:
         chain_signature: str,
         user_id: str,
     ) -> list[ToolChain]:
-        """获取某签名下的原始链数据。"""
+        """Implementation details."""
         try:
             rows = await self.db.query(
                 f"SELECT tool_chain_json FROM {RAW_TABLE} "
@@ -191,7 +184,7 @@ class ChainStore:
             )
             return []
 
-    # ── 提炼经验（多条目存储）──
+
 
     async def save_experience(
         self,
@@ -200,7 +193,7 @@ class ChainStore:
         user_id: str,
         job_id: str = "",
     ) -> None:
-        """保存提炼经验，按 (chain_signature, subkey) 全局 upsert。"""
+        """Implementation details."""
         try:
             now = datetime.now().isoformat()
             subkey = experience.subkey or uuid.uuid4().hex[:8]
@@ -228,10 +221,10 @@ class ChainStore:
             )
             exp_json = json.dumps(prepared.to_dict(), ensure_ascii=False)
 
-            # 序列化 keyword_embedding
+
             kw_emb_json = _embedding_json(prepared.keyword_embedding)
 
-            # 统计该签名下的原始链数量（全局桶级，非按 user_id 分隔）
+
             count_row = await self.db.query_one(
                 f"SELECT COUNT(*) AS cnt FROM {RAW_TABLE} "
                 "WHERE chain_signature = ?",
@@ -274,7 +267,7 @@ class ChainStore:
         self,
         chain_signature: str,
     ) -> list[ChainExperience]:
-        """按签名精确获取所有提炼经验（多条）。"""
+        """Implementation details."""
         try:
             rows = await self.db.query(
                 f"SELECT experience_json, keyword_embedding_json FROM {EXP_TABLE} "
@@ -295,7 +288,7 @@ class ChainStore:
         user_id: str,
         subkey: str,
     ) -> None:
-        """按 (chain_signature, subkey) 精确删除单个条目。user_id 仅保留兼容。"""
+        """Implementation details."""
         try:
             await self.db.execute(
                 f"DELETE FROM {EXP_TABLE} "
@@ -314,11 +307,7 @@ class ChainStore:
         user_id: str,
         limit: int = 20,
     ) -> list[tuple[ChainExperience, list[float] | None]]:
-        """按 tool_name 匹配链签名，返回候选经验 + keyword_embedding。
-
-        chain_experiences 是工具通用知识（非用户特定），不按 user_id 过滤。
-        user_id 参数保留仅为向后兼容。
-        """
+        """Implementation details."""
         try:
             rows = await self.db.query(
                 f"SELECT experience_json, keyword_embedding_json FROM {EXP_TABLE} "
@@ -348,11 +337,7 @@ class ChainStore:
         user_id: str,
         limit: int = 10,
     ) -> list[ChainExperience]:
-        """按 tool_name 匹配链签名，返回相关经验（向后兼容接口）。
-
-        chain_experiences 是工具通用知识（非用户特定），不按 user_id 过滤。
-        user_id 参数保留仅为向后兼容。
-        """
+        """Implementation details."""
         try:
             rows = await self.db.query(
                 f"SELECT experience_json FROM {EXP_TABLE} "
@@ -379,7 +364,7 @@ class ChainStore:
         chain_signature: str,
         user_id: str,
     ) -> None:
-        """删除某签名下的所有提炼经验。user_id 仅保留兼容。"""
+        """Implementation details."""
         try:
             await self.db.execute(
                 f"DELETE FROM {EXP_TABLE} "

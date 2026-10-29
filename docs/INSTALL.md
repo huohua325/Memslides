@@ -30,6 +30,12 @@ pip install -e ".[research]"
 python -m playwright install chromium ffmpeg
 ```
 
+For repository development, install the quality-tool extra as well:
+
+```bash
+pip install -e ".[dev,research]"
+```
+
 The PPTX export runtime installs its Node dependencies automatically into the
 MemSlides cache on first export unless `MEMSLIDES_PPTX_EXPORT_AUTO_INSTALL=0`
 is set. For offline environments, preinstall dependencies from the root
@@ -87,11 +93,29 @@ docker compose -f docker-compose.yml -f docker-compose.private.yml run --rm mems
 ## Useful Checks
 
 ```bash
+python -m compileall -q src tests
+python scripts/check_source_hygiene.py
+pytest -q
+ruff check src tests
+npm ci
+npm run check:pptx-export
 python -m memslides --help
 python -m memslides.experiment --help
-python -m pytest tests
-npm run check:pptx-export
 ```
 
 Generated outputs belong under `.memslides/` or another ignored directory and
 must not be committed.
+
+## Repository Layout
+
+- `src/memslides/`: runtime code and public CLI/API entry points.
+- `src/memslides/experiment/`: paper reproduction experiments and reports.
+- `src/memslides/tools/`: MCP tool services and startup wrappers.
+- `src/memslides/memory/`: profile, working-memory, retrieval, and storage code.
+- `tests/`: automated tests.
+- `.memslides/` and `~/.cache/memslides/`: ignored runtime state and caches.
+
+The generated `.tools.json` snapshot and the unused internal modules
+`memslides.memory.core.protocols` and `memslides.tools.ask_template_selection`
+are no longer part of the package. Use the public CLI, API, and MCP
+configuration instead.

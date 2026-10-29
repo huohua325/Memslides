@@ -56,7 +56,7 @@ MINERU_REQUEST_TIMEOUT_SEC = int(
 MINERU_POLL_TIMEOUT_SEC = int(
     os.getenv("MEMSLIDES_MINERU_POLL_TIMEOUT_SEC", "180")
 )
-# 启用高清图片提取（默认开启）
+
 EXTRACT_HD_IMAGES = (
     os.getenv("MEMSLIDES_EXTRACT_HD_IMAGES", "true").lower() == "true"
 )
@@ -103,16 +103,16 @@ def _default_workspace_output_folder(file_path: str) -> Path:
 
 
 def _find_pdf_parser_json(output_path: Path, stem: str, suffix: str) -> Path | None:
-    """查找PDF parser输出的JSON文件（可能带原文件名前缀）"""
-    # 尝试 stem_suffix.json 格式（如 MemoBrain_model.json）
+    """Implementation details."""
+
     candidate = output_path / f"{stem}_{suffix}.json"
     if candidate.exists():
         return candidate
-    # 尝试 suffix.json 格式
+
     candidate = output_path / f"{suffix}.json"
     if candidate.exists():
         return candidate
-    # 模糊搜索
+
     for f in output_path.glob(f"*{suffix}*.json"):
         return f
     return None
@@ -535,12 +535,12 @@ async def list_document_figures(converted_dir: str) -> dict:
     if not images_dir.exists():
         return {"success": False, "error": "No images directory found", "figures": []}
 
-    # 从 markdown 中提取 caption 信息
+
     captions = {}
     for md_file in converted.glob("*.md"):
         with open(md_file, "r", encoding="utf-8") as f:
             content = f.read()
-        # 匹配 ![...](path)\nFigure N: caption 或 Table N: caption
+
         for m in re.finditer(
             r"!\[[^\]]*\]\(([^)]+)\)\s*\n\s*((?:Figure|Table|图|表)\s*\d+[^.\n]*\.?[^\n]*)",
             content,
@@ -634,12 +634,7 @@ def _replace_with_hd_images(
     figures: list[FigureInfo],
     mapping: dict[str, str] | None = None,
 ) -> str:
-    """
-    将Markdown中的PDF parser缩略图替换为高清图片
-
-    只使用精确映射；若缺少精确映射，则保留原 PDF parser 缩略图，
-    避免再靠附近 caption 做语义猜测而把图重新绑错。
-    """
+    """Implementation details."""
     mapping = mapping or build_pdf_parser_to_hd_mapping(figures, pdf_parser_images_dir)
     pattern = re.compile(
         r'!\[([^\]]*)\]\(([^)]+)\)(\s*\n\s*((?:Figure|Table|图|表)\s*\d+[^.\n]*\.?[^\n]*))?'

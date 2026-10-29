@@ -1,15 +1,4 @@
-"""
-AgenticMemoryRetriever — 两阶段智能检索 (Stage 2, Task 15)
-
-基于 memory_upgrade_design_v2.md §3.4 定义，借鉴 EverMemOS agentic_utils.py。
-
-Round 1: HybridRetriever (RRF) → 快速充分性检查 (确定性, 0 LLM)
-  → 如果充分 → 返回
-Round 2: (仅在不充分时)
-  → LLM 生成补充查询
-  → 并行多查询搜索
-  → 去重合并
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -21,25 +10,16 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Prompt 模板 — 迁移到 memory/prompts/retrieval.py
+
 from ..prompts import MULTI_QUERY_PROMPT
 
-# 充分性阈值
+
 _SUFFICIENCY_SCORE_THRESHOLD = 0.85
 _SUFFICIENCY_MIN_RESULTS = 3
 
 
 class AgenticMemoryRetriever:
-    """两阶段智能检索
-
-    Round 1: HybridRetriever (RRF)
-      → 快速充分性检查 (确定性, 0 LLM)
-      → 如果充分 → 返回
-    Round 2: (仅在不充分时)
-      → LLM 生成补充查询
-      → 并行多查询搜索
-      → 去重合并
-    """
+    """Implementation details."""
 
     def __init__(
         self,
@@ -54,11 +34,11 @@ class AgenticMemoryRetriever:
     async def retrieve(
         self, query: str, user_id: str, top_k: int = 5,
     ) -> list:
-        """两阶段检索"""
+        """Implementation details."""
         # Round 1
         merged = await self._hybrid.retrieve(query, user_id, top_k)
 
-        # 快速充分性检查
+
         if self._quick_sufficiency_check(query, merged) or not self._enable_agentic:
             return merged[:top_k]
 
@@ -81,14 +61,14 @@ class AgenticMemoryRetriever:
 
     @staticmethod
     def _quick_sufficiency_check(query: str, results: list) -> bool:
-        """确定性充分性检查 (0 LLM cost)"""
+        """Implementation details."""
         if not results:
             return False
-        # Top-1 分数足够高 — 兼容 dict 和 RetrievalResult
+
         top_score = getattr(results[0], 'score', 0)
         if isinstance(top_score, (int, float)) and top_score > _SUFFICIENCY_SCORE_THRESHOLD:
             return True
-        # 结果数量足够
+
         if len(results) >= _SUFFICIENCY_MIN_RESULTS:
             return True
         return False
@@ -96,12 +76,12 @@ class AgenticMemoryRetriever:
     async def _generate_refined_queries(
         self, original: str, results: list,
     ) -> list[str]:
-        """LLM 生成 2-3 个补充查询"""
+        """Implementation details."""
         if not self._llm:
             return []
 
         def _extract_text(r):
-            """从 RetrievalResult 或 dict 中提取文本"""
+            """Implementation details."""
             if hasattr(r, 'metadata') and isinstance(r.metadata, dict):
                 return r.metadata.get('design_insight', '') or r.metadata.get('trigger', '')
             if hasattr(r, 'content') and isinstance(r.content, str):
@@ -126,7 +106,7 @@ class AgenticMemoryRetriever:
 
     @staticmethod
     def _parse_queries(response: Any) -> list[str]:
-        """从 LLM 响应解析查询列表"""
+        """Implementation details."""
         text = str(response).strip()
         start = text.find("[")
         end = text.rfind("]") + 1
@@ -143,7 +123,7 @@ class AgenticMemoryRetriever:
     def _deduplicate_merge(
         round1: list, round2_lists: list[list], top_k: int,
     ) -> list:
-        """去重合并 Round 1 + Round 2 结果"""
+        """Implementation details."""
         seen_ids: set[str] = set()
         merged: list = []
 

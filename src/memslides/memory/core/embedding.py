@@ -48,18 +48,7 @@ async def openai_embed(
     fallback_dimensions: int | None = None,
     **_kwargs,
 ) -> np.ndarray:
-    """调用 OpenAI / OpenAI-compatible Embedding API.
-
-    Args:
-        texts: 待编码文本列表
-        model: 模型名称
-        api_key: API Key（None则从环境变量读取）
-        base_url: API基地址（支持代理或 OpenAI-compatible embedding 服务）
-        dimensions: 可选输出维度。不要给 compatible endpoint 传该参数，除非服务明确支持
-
-    Returns:
-        np.ndarray, shape=(len(texts), dim)
-    """
+    """Implementation details."""
     from openai import AsyncOpenAI
 
     if not texts:
@@ -265,14 +254,7 @@ def _should_disable_safetensors(load_target: Path | None, model_name: str) -> bo
 
 
 async def _load_local_embedding_model(model_name: str = "BAAI/bge-m3", device: str = "auto"):
-    """Lazily load a sentence-transformers embedding model.
-
-    使用 sentence-transformers 加载本地或 HuggingFace 模型。
-    如果 HuggingFace 被墙，可设置环境变量:
-        export HF_ENDPOINT=https://hf-mirror.com
-    或手动下载:
-        huggingface-cli download <model_name>
-    """
+    """Implementation details."""
     resolved_device = device
     if resolved_device == "auto":
         try:
@@ -336,18 +318,7 @@ async def local_sentence_transformer_embed(
     max_length: int = 512,
     **_kwargs,
 ) -> np.ndarray:
-    """Local embedding via sentence-transformers.
-
-    Args:
-        texts: 待编码文本列表
-        model_name: HuggingFace 模型名或本地路径
-        device: "auto" | "cuda" | "cpu"
-        batch_size: 批处理大小
-        max_length: 最大 token 长度
-
-    Returns:
-        np.ndarray, shape=(len(texts), dim)
-    """
+    """Implementation details."""
     model = await _load_local_embedding_model(model_name, device)
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
@@ -495,10 +466,10 @@ async def bge_m3_local_first_embed(*args, **kwargs) -> np.ndarray:
     return await local_first_embed(*args, **kwargs)
 
 
-# ── Embedding 缓存层 ──
+
 
 class CachedEmbedding:
-    """LRU 缓存包装器 — 相同文本不重复计算 Embedding"""
+    """Implementation details."""
 
     def __init__(self, embed_func: EmbeddingFunc, max_size: int = 512):
         self._func = embed_func
@@ -508,7 +479,7 @@ class CachedEmbedding:
         self._misses = 0
 
     async def __call__(self, texts: list[str]) -> np.ndarray:
-        """EmbeddingFunc 签名: (list[str]) -> np.ndarray"""
+        """Implementation details."""
         results: list[tuple[int, np.ndarray]] = []
         uncached_texts: list[str] = []
         uncached_indices: list[int] = []
@@ -546,7 +517,7 @@ class CachedEmbedding:
         }
 
 
-# ── Embedding 函数工厂 ──
+
 
 def get_embedding_func(
     provider: str = "local-first",
@@ -554,18 +525,7 @@ def get_embedding_func(
     cache_size: int = 512,
     **kwargs,
 ) -> EmbeddingFunc:
-    """Embedding 函数工厂
-
-    Args:
-        provider: "local-first" (local sentence-transformers model, then API) |
-                  "local" / "sentence-transformers" (local only) |
-                  "openai" (OpenAI API) | "openai-compatible" (OpenAI-compatible endpoint)
-        cache: 是否启用 LRU 缓存
-        cache_size: 缓存最大条目数
-
-    Returns:
-        异步 Embedding 函数
-    """
+    """Implementation details."""
     normalized_provider = str(provider or "bge-m3").strip().lower().replace("_", "-")
     if normalized_provider in {
         "bge-m3-local-first",
@@ -612,15 +572,7 @@ def get_embedding_func(
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    """计算余弦相似度
-
-    Args:
-        a: 向量a, shape=(dim,)
-        b: 向量b, shape=(dim,)
-
-    Returns:
-        float, [-1, 1]
-    """
+    """Implementation details."""
     a = np.asarray(a, dtype=np.float32).flatten()
     b = np.asarray(b, dtype=np.float32).flatten()
     norm_a = np.linalg.norm(a)
@@ -638,15 +590,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def batch_cosine_similarity(query: np.ndarray, matrix: np.ndarray) -> np.ndarray:
-    """计算query与matrix中每行的余弦相似度
-
-    Args:
-        query: shape=(dim,)
-        matrix: shape=(n, dim)
-
-    Returns:
-        np.ndarray, shape=(n,)
-    """
+    """Implementation details."""
     query = np.asarray(query, dtype=np.float32).flatten()
     try:
         matrix = np.asarray(matrix, dtype=np.float32)

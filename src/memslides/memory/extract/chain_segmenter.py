@@ -1,8 +1,4 @@
-"""ChainSegmenter — 工具链分割器（Design Doc §6.1.1）
-
-Task 结束时将 cycle 序列通过 LLM 划分为语义工具链。
-使用完整的 reasoning + tool_call + observation 轨迹作为输入。
-"""
+"""Implementation details."""
 
 from __future__ import annotations
 
@@ -17,14 +13,14 @@ from .llm_compat import call_llm_with_prompt
 
 logger = logging.getLogger(__name__)
 
-# ── 智能截断工具 ──
 
-# 大文本参数的工具名集合（这些工具的 content/html_content 字段需要摘要化）
+
+
 _LARGE_CONTENT_TOOLS = {"write_html_file", "write_markdown_file", "write_file"}
-# 大文本参数的字段名
+
 _LARGE_CONTENT_FIELDS = {"content", "html_content", "markdown_content"}
 
-# observation 截断上限（按工具类型区分）
+
 _OBS_LIMITS = {
     "read_file": 800,
     "read_html_file": 800,
@@ -39,11 +35,7 @@ _OBS_LIMITS = {
 
 
 def _smart_truncate_args(tool_name: str, args: str | dict, max_len: int = 2000) -> str:
-    """智能截断工具参数。
-
-    - 大文本类工具（write_html_file 等）：content 字段只保留前 200 字符 + 长度信息
-    - 其他工具：保留完整参数，超长时截断
-    """
+    """Implementation details."""
     if isinstance(args, dict):
         args_str = json.dumps(args, ensure_ascii=False)
     else:
@@ -67,16 +59,12 @@ def _smart_truncate_args(tool_name: str, args: str | dict, max_len: int = 2000) 
 
 
 def _smart_truncate_observation(tool_name: str, result: str) -> str:
-    """智能截断 observation。
-
-    - 按工具类型使用不同的截断上限
-    - 保留开头（通常包含关键状态信息）和结尾（通常包含摘要）
-    """
+    """Implementation details."""
     limit = _OBS_LIMITS.get(tool_name, _OBS_LIMITS["_default"])
     if len(result) <= limit:
         return result
 
-    # 保留开头 70% + 结尾 30%
+
     head_len = int(limit * 0.7)
     tail_len = limit - head_len
     omitted = len(result) - head_len - tail_len
@@ -97,12 +85,7 @@ def build_rich_trace(
     reason_source: str = "",
     reason_quality: str = "",
 ) -> dict:
-    """构建单个工具调用的 rich trace。
-
-    - reasoning/tool_reason: 记录可观测的工具使用理由（显式理由优先，必要时使用合成兜底）
-    - arguments: 大文本类做摘要
-    - observation: 智能截断
-    """
+    """Implementation details."""
     final_reason = tool_reason if tool_reason is not None else reasoning
     return {
         "reasoning": final_reason,
@@ -117,7 +100,7 @@ def build_rich_trace(
 
 
 def format_rich_traces_for_llm(traces: list[dict]) -> str:
-    """将 rich traces 格式化为 LLM 可读的文本。"""
+    """Implementation details."""
     parts = []
     for i, t in enumerate(traces):
         lines = [f"[Cycle {i}] {t['tool_name']}"]
@@ -139,11 +122,7 @@ def format_rich_traces_for_llm(traces: list[dict]) -> str:
 
 
 class ChainSegmenter:
-    """Task 结束时将 cycle 序列划分为工具链。
-
-    使用完整的 rich traces（reasoning + tool_call + observation）作为 LLM 输入，
-    替代旧版的压缩摘要，保留更多语义信息用于后续经验提取。
-    """
+    """Implementation details."""
 
     def __init__(self, llm: Any = None):
         self._llm = llm
@@ -154,13 +133,7 @@ class ChainSegmenter:
         round_id: str = "",
         rich_traces: list[dict] | None = None,
     ) -> list[ChainSegment]:
-        """将工具调用序列划分为 ChainSegment 列表。
-
-        Args:
-            compact_round: AgentRound 实例（提供 segments 和 user_message）
-            round_id: 当前 Round ID
-            rich_traces: 完整执行轨迹列表。如果提供，优先使用；否则降级到压缩摘要。
-        """
+        """Implementation details."""
         if not compact_round or not self._llm:
             return []
 
@@ -168,11 +141,11 @@ class ChainSegmenter:
         if not segments:
             return []
 
-        # 构建 LLM 输入：优先使用 rich_traces
+
         if rich_traces:
             cycle_text = format_rich_traces_for_llm(rich_traces)
         else:
-            # 降级：使用旧版压缩摘要
+
             cycle_lines = []
             for i, seg in enumerate(segments):
                 name = getattr(seg, "tool_name", "unknown")
@@ -209,7 +182,7 @@ class ChainSegmenter:
             ]
             chain_name = make_chain_signature(tool_seq)
 
-            # 提取该链对应的 rich_traces 子集
+
             chain_rich_traces = []
             if rich_traces:
                 for idx in indices:
@@ -229,7 +202,7 @@ class ChainSegmenter:
         return chains
 
     def _parse_response(self, text: str) -> list[dict]:
-        """解析 LLM JSON 响应。"""
+        """Implementation details."""
         text = text.strip()
         start = text.find("[")
         end = text.rfind("]")
@@ -246,7 +219,7 @@ class ChainSegmenter:
         round_id: str,
         rich_traces: list[dict] | None = None,
     ) -> ChainSegment:
-        """降级：整个 Round 作为一条链。"""
+        """Implementation details."""
         tool_seq = [getattr(s, "tool_name", "") for s in segments]
         return ChainSegment(
             chain_id=str(uuid4()),

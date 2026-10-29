@@ -41,8 +41,8 @@ from memslides.memory.extract.llm_compat import (
 
 mcp = FastMCP(name="MemSlidesDeckTools")
 
-# Stage 7: 立即导入 template_tools，确保模板工具在 MCP 服务器启动前注册
-# 注意：必须在 mcp 实例创建后、任何工具列表获取之前导入
+
+
 import memslides.tools.template_tools  # noqa: F401, E402
 
 # Module-level variable to track current agent (replaces deprecated exclude_args)
@@ -8728,11 +8728,11 @@ def ask_user(question: str) -> str:
     return input("Your answer: ")
 
 
-# Issue 4: 合法的 workspace 根目录 markdown 文件名（小写匹配）
+
 _ALLOWED_ROOT_MD = {
     "design_plan.md", "manuscript.md", "readme.md", "index.md",
 }
-# Issue 4: Agent 常自创的状态总结文件关键词
+
 _STATE_CLUTTER_KEYWORDS = {
     "state_summary", "state summary", "continuation", "seamless",
     "canonical", "working_state", "tool_state", "project_state",
@@ -8772,7 +8772,7 @@ def write_markdown_file(file_path: str, content: str) -> str:
         if design_stage_target_error:
             return design_stage_target_error
 
-        # Issue 4: 检测 agent 自创的状态总结文件，重定向到 .history/agent_notes/
+
         _fname_lower = path.name.lower()
         _is_root_level = (path.parent == _normalize_path(".") or
                           path.parent.name in ("", "."))
@@ -8813,7 +8813,7 @@ def write_markdown_file(file_path: str, content: str) -> str:
 
 
 def _infer_layout_from_html(html_content: str) -> str:
-    """Stage 7: 从 HTML 注释中推断布局名称"""
+    """Implementation details."""
     match = re.search(r'<!--\s*template-layout:\s*(.+?)\s*-->', html_content)
     return match.group(1).strip() if match else ""
 
@@ -9217,18 +9217,18 @@ def write_html_file(
             if _builder and _skill:
                 _layout = _infer_layout_from_html(content) or _builder.get_last_queried_layout()
 
-                # 强制查询检查：如果有布局标注但未调用 query_slide_layout，则警告
+
                 if _layout and not is_layout_queried(_layout):
                     queried = get_queried_layouts()
                     if queried:
-                        # 已查询过其他布局，但不是当前布局
+
                         compliance_note += (
                             f"\n⚠️ MUST_QUERY: 文件已保存，但布局 `{_layout}` 未查询。"
                             f"请立即调用 query_slide_layout(\"{_layout}\") 获取元素规范，然后用 write_html_file 重新生成此页。"
                             f"\n   已查询的布局: {', '.join(queried)}"
                         )
                     else:
-                        # 完全没查询过任何布局
+
                         compliance_note += (
                             f"\n⚠️ MUST_QUERY: 文件已保存，但布局 `{_layout}` 未查询。"
                             f"请立即调用 query_slide_layout(\"{_layout}\") 获取元素详情和字符限制，然后用 write_html_file 重新生成此页。"
@@ -9251,7 +9251,7 @@ def write_html_file(
                     if unfixable:
                         feedback_text = _checker.format_issues_for_retry(unfixable)
                         compliance_note += "\n" + feedback_text
-                        # 记录合规反馈
+
                         _builder.record_compliance_feedback(file_path, len(unfixable), feedback_text)
         except Exception:
             pass  # compliance is non-fatal
@@ -9269,7 +9269,7 @@ def write_html_file(
                 f"\n🔖 Normalized {marker_label} marker to one visible bottom-right anchored element inside the slide canvas."
             )
 
-        # A5: body 固定尺寸与高风险响应式版式提示
+
         try:
             _layout_risk_notes = _body_layout_risk_notes(content)
             if _layout_risk_notes:
@@ -9280,7 +9280,7 @@ def write_html_file(
         except Exception:
             pass
 
-        # A3: 记录 query_slide_layout 调用状态
+
         try:
             from memslides.tools.template_tools import (
                 is_layout_queried as _a3_is_queried,
@@ -12742,14 +12742,14 @@ def list_memory_artifacts(category: str = "all") -> str:
         lines = []
 
         def list_dir_contents(dir_path: Path, prefix: str = "") -> list[str]:
-            """递归列出目录内容"""
+            """Implementation details."""
             result = []
             if not dir_path.exists():
                 return result
             for p in sorted(dir_path.iterdir()):
                 if p.is_dir():
                     result.append(f"{prefix}{p.name}/")
-                    # 只展开一层子目录
+
                     for sub in sorted(p.iterdir()):
                         if sub.is_file():
                             size = sub.stat().st_size
@@ -12823,9 +12823,9 @@ def finalize(outcome: str) -> str:
     if agent_name == "Researcher":
         md_dir = path.parent
         if not (path.is_file() and path.suffix == ".md"):
-            # 提供更具指导性的错误消息
+
             if path.is_dir():
-                # 尝试在目录中找到markdown文件
+
                 md_files = list(path.glob("*.md"))
                 if md_files:
                     return f"Error: You provided a directory path. Please call finalize with the markdown FILE path, not the directory. Found these files: {', '.join(f.name for f in md_files)}. Use the full path like: {md_files[0].resolve()}"
@@ -12836,7 +12836,7 @@ def finalize(outcome: str) -> str:
         with open(path, encoding="utf-8") as f:
             content = f.read()
 
-        # 校验 --- 分隔符：内容多但没分页时拒绝 finalize
+
         _pages = _split_markdown_slide_pages(content)
         _h2_count = content.count("\n## ")
         if len(_pages) == 1 and _h2_count >= 3:
@@ -13198,7 +13198,7 @@ async def inspect_slide(
                 record_slide_inspected(html_path, success=False)
             except Exception:
                 pass
-            # 为尺寸不匹配提供更具体的修复指导
+
             if "aspect ratio mismatch" in error_str or "don't match presentation layout" in error_str:
                 size_map = {"16:9": "1280x720", "4:3": "960x720", "A1": "2244x3178", "A2": "1587x2244", "A3": "1122x1587", "A4": "794x1123"}
                 expected = size_map.get(aspect_ratio, "1280x720")
@@ -13317,11 +13317,11 @@ async def inspect_slide(
             _checker = TemplateComplianceChecker(_builder.skill)
             _layout = _builder.get_last_queried_layout()
             html_text = html_path.read_text(encoding="utf-8")
-            # 从 HTML 注释推断布局（优先于 last_queried）
+
             _inferred = _infer_layout_from_html(html_text)
             if _inferred:
                 _layout = _inferred
-            # 布局未查询警告
+
             if _layout and not is_layout_queried(_layout):
                 compliance_text += (
                     f"\n⚠️ MUST_QUERY: 当前页布局 `{_layout}` 未通过 query_slide_layout 查询。"
@@ -13330,7 +13330,7 @@ async def inspect_slide(
             _issues = _checker.check(html_text, _layout, file_path=html_path)
             if _issues:
                 compliance_text += _checker.format_issues_for_retry(_issues)
-                # 记录合规反馈
+
                 _builder.record_compliance_feedback(str(html_path), len(_issues), compliance_text)
     except Exception as _e:
         pass  # compliance check is non-fatal
@@ -13624,7 +13624,7 @@ def inspect_manuscript(md_file: str) -> dict:
                 f"requested {expected_pages} pages but manuscript currently has {len(pages)}."
             )
 
-    # 检查是否缺少 --- 分隔符（内容多但只有 1 页说明没分页）
+
     h2_count = markdown.count("\n## ")
     if len(pages) == 1 and h2_count >= 3:
         result["warnings"].append(

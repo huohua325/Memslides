@@ -1,10 +1,10 @@
-"""Extraction Prompts — 意图分类、Episode提取、工具学习、用户消息分析、原子偏好提取"""
+"""Implementation details."""
 
 from __future__ import annotations
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 意图分类 (每条用户消息)
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _format_context(messages: list[dict] | None) -> str:
@@ -23,21 +23,7 @@ def build_intent_classification_prompt(
     context_messages: list[dict] | None = None,
     current_slide: str = "",
 ) -> str:
-    """构建意图分类Prompt
-
-    Args:
-        user_message: 用户当前消息
-        context_messages: 最近N条对话历史
-        current_slide: 当前焦点幻灯片
-
-    返回的prompt要求LLM输出JSON：
-    {
-        "intent_type": "modify_style|modify_content|modify_layout|query|confirm|reject|undo|export|chat",
-        "confidence": 0.0-1.0,
-        "target_slide": "slide_3" | "all" | "",
-        "modification_description": "用户想要做什么的简要描述"
-    }
-    """
+    """Implementation details."""
     return f"""你是一个PPT修改意图分类器。请分析用户消息的意图。
 
 ## 上下文
@@ -85,7 +71,7 @@ def build_intent_classification_prompt(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Episode 提取 (每批修改)
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 EPISODE_EXTRACTION_PROMPT = """You are analyzing PPT modification interactions to extract episodes \
@@ -116,10 +102,10 @@ Return a JSON object:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 用户消息分析 (每条用户消息)
-# 注：以下 prompt 属于早期 user_message_analyzer 方案遗留，目前 modify
-# 阶段主链已改为 session_preference -> on_user_preference -> WM.add_preference。
-# 这里暂时保留定义，仅用于兼容历史代码/实验回溯，不作为当前主路径。
+
+
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 USER_MESSAGE_SYSTEM_CONTEXT = (
@@ -152,7 +138,7 @@ Do not invent information not present in the message."""
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 原子偏好提取 (从 Episode)
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 ATOMIC_PREFERENCE_EXTRACTION_PROMPT = """你是一个用户偏好分析专家。根据以下设计交互记录，提取用户的原子级偏好。
