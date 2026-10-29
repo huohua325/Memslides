@@ -31,6 +31,18 @@
 <table>
   <tr>
     <td width="150" align="center">
+      <strong>2026-07-03</strong><br>
+      <sub>Product milestone</sub>
+    </td>
+    <td>
+      <strong>&#128640; The MemSlides demo website crossed 100 users.</strong><br>
+      Thank you for supporting the MemSlides community. Feedback is always welcome:
+      <a href="https://github.com/huohua325/Memslides/issues">open an issue</a>
+      or send us feedback through the demo website.
+    </td>
+  </tr>
+  <tr>
+    <td width="150" align="center">
       <strong>2026-06-26</strong><br>
       <sub>Product milestone</sub>
     </td>
