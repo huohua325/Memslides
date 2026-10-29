@@ -11,25 +11,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from memslides.agents.agent import RoleToolContractError
+from memslides.agents.revision_editor import RevisionEditor
 from memslides.pipelines.generation_support import (
     find_existing_design_plan_rel as _find_existing_design_plan_rel,
     normalize_bool_flag as _normalize_bool_flag,
     normalize_memory_intent as _normalize_memory_intent,
     normalize_text_flag as _normalize_text_flag,
+    resolve_request_memory_intent as _resolve_request_memory_intent,
 )
 from memslides.templates.runtime_state import (
     TemplateRuntimeState,
     canonical_layout_names_from_profile,
-    clear_template_runtime_state,
     save_template_runtime_state,
 )
 from memslides.templates.quality import (
-    ADAPTIVE_STRUCTURAL_TEMPLATE,
-    STRICT_STRUCTURAL_TEMPLATE,
-    STRUCTURAL_TEMPLATE,
     assess_template_quality,
     write_template_quality_report,
 )
+from memslides.tools.deck_runtime import set_current_agent
 from bs4 import BeautifulSoup
 from memslides.utils.typings import InputRequest
 from memslides.utils.webview import convert_html_to_pptx_with_retry
@@ -3190,34 +3190,6 @@ def resolve_exportable_slide_paths(
     if resolved_dir is None:
         return []
     return collect_exportable_slide_paths(resolved_dir)
-
-
-def session_preference_has_general_signal(user_message: str) -> bool:
-    normalized = " ".join(str(user_message or "").split()).lower()
-    if not normalized:
-        return False
-    patterns = (
-        r"(所有|全部|整套|全局|统一).{0,12}(页|页面|标题|配色|颜色|字体|版式|风格|正文)",
-        r"(以后|未来|后续|后面|之后|新增页|新加页|新增幻灯片|新生成|新建|新插入|future).{0,20}(继续|沿用|保持|都用|都要|都保持|都为|均为|设为|改成|使用|应用|继承|默认|遵守|生效)",
-        r"(每次|总是|一直|默认).{0,16}(都|用|保持|遵守)",
-        r"(来源|页数|格式|约束).{0,16}(必须|只能|不要|禁止|严格)",
-    )
-    return any(re.search(pattern, normalized) for pattern in patterns)
-
-
-def infer_session_rule_element_kind(*texts: str) -> str:
-    haystack = " ".join(str(text or "") for text in texts).lower()
-    if any(keyword in haystack for keyword in ("标题", "title", "h1", "heading")):
-        return "slide_title"
-    if any(keyword in haystack for keyword in ("pill tag", "pill_tag", "pill-tag", "badge", "chip", "标签", "圆角矩形标签")):
-        return "pill_tag"
-    if any(keyword in haystack for keyword in ("正文", "bullet", "body", "段落", "要点")):
-        return "body_text"
-    if any(keyword in haystack for keyword in ("页脚", "footer")):
-        return "footer"
-    if any(keyword in haystack for keyword in ("图片", "image", "图像")):
-        return "image"
-    return "deck"
 
 
 def request_mentions_text_color_without_background(user_message: str) -> bool:
@@ -7805,7 +7777,6 @@ async def auto_match_template_profile(
     try:
         from memslides.memory.style_intent_classifier import (
             StyleIntentClassifier,
-            TemplateIntent,
         )
     except ImportError as e:
         logger.warning("StyleIntentClassifier not available: %s", e)

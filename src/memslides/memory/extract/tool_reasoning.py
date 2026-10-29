@@ -164,7 +164,7 @@ def synthesize_tool_reason(
     if lower_name in {"inspect_slide", "inspect_manuscript"}:
         return f"I need to inspect {target_desc} to verify that the previous change rendered correctly."
     if lower_name in {"list_files", "list_document_figures", "explore_workspace_images", "query_slide_layout"}:
-        return f"I need to enumerate the relevant assets or structure first to choose the next content or layout step."
+        return "I need to enumerate the relevant assets or structure first to choose the next content or layout step."
     if lower_name == "convert_to_markdown":
         return "I need to convert the attachment into Markdown and extracted assets first so the content becomes easier to analyze."
     if lower_name in {"image_caption", "search_image", "image_generation"}:

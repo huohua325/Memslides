@@ -35,6 +35,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+]
 research = [
   "chromadb",
   "bm25s",
@@ -48,6 +52,22 @@ memslides = "memslides.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# MCP wrappers support direct execution by adding the repository root before imports.
+"src/memslides/tools/asset_services.py" = ["E402"]
+"src/memslides/tools/document_conversion.py" = ["E402"]
+"src/memslides/tools/memory_service.py" = ["E402"]
+"src/memslides/tools/research.py" = ["E402"]
+"src/memslides/tools/search.py" = ["E402"]
 
 [tool.setuptools.package-data]
 memslides = [

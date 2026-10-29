@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -28,7 +27,7 @@ from pptx import Presentation
 from pydantic import BaseModel, Field
 
 from memslides.utils.config import MemSlidesConfig
-from memslides.utils.log import error, info, set_logger, warning
+from memslides.utils.log import error, info, warning
 from memslides.utils.webview import (
     _get_expected_playwright_binary,
     convert_html_to_pptx_with_retry,
@@ -4512,13 +4511,13 @@ def _body_layout_risk_notes(html_text: str) -> list[str]:
     notes: list[str] = []
     if not width or not height:
         notes.append(
-            "`body` 缺少显式 `width/height` 像素尺寸；请直接写成固定画布尺寸，例如 16:9 使用 `1280px × 720px`。"
+            "`body` is missing explicit pixel `width/height`; use a fixed canvas, such as `1280px x 720px` for 16:9."
         )
     else:
         if not width.lower().endswith("px") or _DYNAMIC_LAYOUT_UNIT_RE.search(width):
-            notes.append(f"`body width` 使用了非固定单位（`{width}`）；请改为精确像素值。")
+            notes.append(f"`body width` uses a non-fixed unit (`{width}`); use an exact pixel value.")
         if not height.lower().endswith("px") or _DYNAMIC_LAYOUT_UNIT_RE.search(height):
-            notes.append(f"`body height` 使用了非固定单位（`{height}`）；请改为精确像素值。")
+            notes.append(f"`body height` uses a non-fixed unit (`{height}`); use an exact pixel value.")
 
     if re.search(r"\b\d+(?:\.\d+)?(?:vw|vh|vmin|vmax)\b", html_text, re.IGNORECASE) and re.search(
         r"aspect-ratio\s*:\s*16\s*/\s*9",
@@ -4526,7 +4525,7 @@ def _body_layout_risk_notes(html_text: str) -> list[str]:
         re.IGNORECASE,
     ):
         notes.append(
-            "检测到 `vw/vh` 与 `aspect-ratio` 组合；这类响应式主画布在 PPT 渲染时很容易把顶部或底部内容裁出画布。"
+            "Detected a `vw/vh` and `aspect-ratio` combination; a responsive main canvas can clip top or bottom content during PPT rendering."
         )
 
     if (
@@ -4535,7 +4534,7 @@ def _body_layout_risk_notes(html_text: str) -> list[str]:
         and re.search(r"aspect-ratio\s*:\s*16\s*/\s*9", html_text, re.IGNORECASE)
     ):
         notes.append(
-            "检测到居中 flex 外壳包裹固定长宽比内容区；当内容区高度超出 viewport 时，标题和首屏内容会被整体上推裁切。"
+            "Detected a centered flex shell around a fixed-aspect-ratio content area; an oversized content area can push the title and first-screen content out of the viewport."
         )
 
     deduped: list[str] = []
@@ -6992,8 +6991,8 @@ def _build_static_slide_diagnostics(
             _diagnostic_payload(
                 "canvas_dimension_missing",
                 (
-                    "`body` 缺少可静态解析的固定像素 `width/height`，"
-                    f"{aspect_ratio} 应使用 {expected_width}px × {expected_height}px。"
+                    "`body` lacks statically parseable fixed-pixel `width/height`; "
+                    f"{aspect_ratio} should use {expected_width}px x {expected_height}px."
                 ),
                 source=source,
                 severity="warning",
@@ -7018,8 +7017,8 @@ def _build_static_slide_diagnostics(
             _diagnostic_payload(
                 "canvas_dimension_mismatch",
                 (
-                    f"`body` 画布尺寸为 {_format_px_pair(body_width, body_height)}，"
-                    f"与 {aspect_ratio} 期望的 {expected_width}px × {expected_height}px 不一致。"
+                    f"`body` canvas is {_format_px_pair(body_width, body_height)}, "
+                    f"but {aspect_ratio} expects {expected_width}px x {expected_height}px."
                 ),
                 source=source,
                 severity="error",
@@ -7044,7 +7043,7 @@ def _build_static_slide_diagnostics(
         diagnostics.append(
             _diagnostic_payload(
                 "body_padding_without_border_box",
-                "`body` 使用了 padding 但未设置 `box-sizing: border-box`，容易把内容实际画布挤出边界。",
+                "`body` uses padding without `box-sizing: border-box`, which can push the effective canvas outside its bounds.",
                 source=source,
                 severity="warning",
                 target_tag=body,
@@ -7072,8 +7071,8 @@ def _build_static_slide_diagnostics(
                 _diagnostic_payload(
                     "slide_root_dimension_risk",
                     (
-                        f"`{_selector_hint_for_tag(slide_root)}` 尺寸为 {_format_px_pair(slide_width, slide_height)}，"
-                        f"与导出画布 {expected_width}px × {expected_height}px 不一致，可能导致 canvas 裁切。"
+                        f"`{_selector_hint_for_tag(slide_root)}` is {_format_px_pair(slide_width, slide_height)}, "
+                        f"which does not match the export canvas {expected_width}px x {expected_height}px and may cause clipping."
                     ),
                     source=source,
                     severity="warning",
@@ -7100,9 +7099,9 @@ def _build_static_slide_diagnostics(
             _diagnostic_payload(
                 "bottom_safe_zone_violation",
                 (
-                    f"检测到 {len(bottom_violations)} 个文本元素的 `bottom` 小于 "
-                    f"{int(_BOTTOM_SAFE_ZONE_MIN_PX)}px（例如 {violation_values}），"
-                    "导出时容易触发 `too close to bottom edge`；这是静态预警，优先以 inspect/export 诊断为准。"
+                    f"Detected {len(bottom_violations)} text elements with `bottom` below "
+                    f"{int(_BOTTOM_SAFE_ZONE_MIN_PX)}px (for example, {violation_values}); "
+                    "export may trigger `too close to bottom edge`. This is a static warning; use inspect/export diagnostics as the source of truth."
                 ),
                 source=source,
                 severity="warning",
@@ -7162,8 +7161,8 @@ def _build_static_slide_diagnostics(
                 _diagnostic_payload(
                     "container_padding_without_border_box",
                     (
-                        f"`{_selector_hint_for_tag(tag)}` 同时设置固定高度和 padding，"
-                        "但未使用 `box-sizing: border-box`，实际外框高度可能超过预期并触发导出裁切。"
+                        f"`{_selector_hint_for_tag(tag)}` sets both a fixed height and padding "
+                        "without `box-sizing: border-box`; its effective height may exceed the expected size and clip during export."
                     ),
                     source=source,
                     severity="warning",
@@ -7214,9 +7213,9 @@ def _build_static_slide_diagnostics(
         diagnostics.append(
             _diagnostic_payload(
                 "off_canvas_absolute",
-                (
-                    f"`{_selector_hint_for_tag(tag)}` 使用了超出画布边界的绝对定位，"
-                    "可能导致导出时元素被裁出 slide canvas。"
+                    (
+                        f"`{_selector_hint_for_tag(tag)}` uses absolute positioning outside the canvas bounds, "
+                        "which may clip the element during export."
                 ),
                 source=source,
                 severity="warning",
@@ -7255,9 +7254,9 @@ def _build_static_slide_diagnostics(
         diagnostics.append(
             _diagnostic_payload(
                 "image_overflow",
-                (
-                    f"`{_selector_hint_for_tag(tag)}` 的尺寸为 {_format_px_pair(width, height)}，"
-                    f"超过了 `body` 画布 {_format_px_pair(body_width, body_height)}。"
+                    (
+                        f"`{_selector_hint_for_tag(tag)}` is {_format_px_pair(width, height)}, "
+                        f"which exceeds the `body` canvas {_format_px_pair(body_width, body_height)}."
                 ),
                 source=source,
                 severity="warning",
@@ -7297,8 +7296,8 @@ def _build_static_slide_diagnostics(
                 _diagnostic_payload(
                     "table_height_risk",
                     (
-                        f"`{_selector_hint_for_tag(table)}` 表格较高或行数较多（rows={len(rows)}），"
-                        "建议放入固定高度 wrapper，避免导出时底部裁切。"
+                        f"`{_selector_hint_for_tag(table)}` is tall or has many rows (rows={len(rows)}); "
+                        "place it in a fixed-height wrapper to avoid bottom clipping during export."
                     ),
                     source=source,
                     severity="warning",
@@ -7334,8 +7333,8 @@ def _build_static_slide_diagnostics(
             _diagnostic_payload(
                 "bottom_safe_zone_violation",
                 (
-                    "当前页存在底部安全区风险，文本元素过于贴近 slide 底边，"
-                    f"请将相关文本或容器的 `bottom` 提高到至少 {int(_BOTTOM_SAFE_ZONE_MIN_PX)}px。"
+                    "The slide has a bottom safe-zone risk: a text element is too close to the slide edge. "
+                    f"Raise the related text or container `bottom` to at least {int(_BOTTOM_SAFE_ZONE_MIN_PX)}px."
                 ),
                 source="inspect",
                 severity="error",
@@ -7351,7 +7350,7 @@ def _build_static_slide_diagnostics(
         diagnostics.append(
             _diagnostic_payload(
                 "clipped_outside_canvas",
-                "当前页存在元素被裁出 slide canvas 的信号，优先收紧图片或外层容器尺寸，并检查绝对定位偏移。",
+                "The slide contains a signal that an element is clipped outside the canvas; first constrain the image or outer container and check absolute-position offsets.",
                 source="inspect",
                 severity="error",
                 target_tag=repair_tags[0] if repair_tags else None,
@@ -7366,7 +7365,7 @@ def _build_static_slide_diagnostics(
         diagnostics.append(
             _diagnostic_payload(
                 "text_overflow",
-                "当前页存在文本或正文容器溢出信号，优先收紧正文容器尺寸、行高、字体或改为分栏布局。",
+                "The slide contains a text or body-container overflow signal; first tighten the container, line height, or font, or rebalance the content into columns.",
                 source="inspect",
                 severity="error",
                 target_tag=repair_tags[0] if repair_tags else None,
@@ -8077,8 +8076,8 @@ def _find_nested_slide_root_issue(root: Tag | BeautifulSoup) -> str | None:
         )
         if nested is not None:
             return (
-                "检测到嵌套 `.slide` 容器（nested `.slide` root）："
-                f"`{_selector_hint_for_tag(tag)}` 内又包含 `{_selector_hint_for_tag(nested)}`。"
+                "Detected nested `.slide` containers (nested `.slide` roots): "
+                f"`{_selector_hint_for_tag(tag)}` contains `{_selector_hint_for_tag(nested)}`."
             )
     return None
 
@@ -8096,8 +8095,8 @@ def _find_invalid_list_structure_issue(root: Tag | BeautifulSoup) -> str | None:
                 for child in invalid_children[:3]
             )
             return (
-                "检测到非法列表结构（invalid list structure）："
-                f"`{_selector_hint_for_tag(list_tag)}` 的直接子节点包含非 `<li>` 元素（{child_labels}）。"
+                "Detected an invalid list structure: "
+                f"direct children of `{_selector_hint_for_tag(list_tag)}` include non-`<li>` elements ({child_labels})."
             )
     return None
 
@@ -8148,10 +8147,10 @@ def _find_suspicious_slide_geometry_issue(html_text: str) -> str | None:
         )
         if width_suspicious or height_suspicious:
             return (
-                "检测到可疑的 `.slide` 画布尺寸（suspicious slide geometry）："
-                f"`{_selector_hint_for_tag(tag)}` 为 {_format_px_pair(slide_width, slide_height)}，"
-                f"但 `body` 为 {_format_px_pair(body_width, body_height)}。"
-                "这通常表示 `.slide` 画布被误缩放了。"
+                "Detected suspicious `.slide` canvas geometry: "
+                f"`{_selector_hint_for_tag(tag)}` is {_format_px_pair(slide_width, slide_height)}, "
+                f"but `body` is {_format_px_pair(body_width, body_height)}. "
+                "This usually means the `.slide` canvas was scaled incorrectly."
             )
     return None
 
@@ -9223,15 +9222,15 @@ def write_html_file(
                     if queried:
 
                         compliance_note += (
-                            f"\n⚠️ MUST_QUERY: 文件已保存，但布局 `{_layout}` 未查询。"
-                            f"请立即调用 query_slide_layout(\"{_layout}\") 获取元素规范，然后用 write_html_file 重新生成此页。"
-                            f"\n   已查询的布局: {', '.join(queried)}"
+                            f"\nMUST_QUERY: The file was saved, but layout `{_layout}` was not queried. "
+                            f"Call query_slide_layout(\"{_layout}\") to get its element contract, then regenerate the slide with write_html_file."
+                            f"\n   Queried layouts: {', '.join(queried)}"
                         )
                     else:
 
                         compliance_note += (
-                            f"\n⚠️ MUST_QUERY: 文件已保存，但布局 `{_layout}` 未查询。"
-                            f"请立即调用 query_slide_layout(\"{_layout}\") 获取元素详情和字符限制，然后用 write_html_file 重新生成此页。"
+                            f"\nMUST_QUERY: The file was saved, but layout `{_layout}` was not queried. "
+                            f"Call query_slide_layout(\"{_layout}\") to get element details and character limits, then regenerate the slide with write_html_file."
                         )
 
                 from memslides.memory.compliance.template_checker import TemplateComplianceChecker
@@ -9275,7 +9274,7 @@ def write_html_file(
             if _layout_risk_notes:
                 compliance_note += (
                     "\n⚠️ BODY_LAYOUT: "
-                    + "\n   - ".join(["检测到高风险版式信号。", *_layout_risk_notes[:3]])
+                    + "\n   - ".join(["High-risk layout signals detected.", *_layout_risk_notes[:3]])
                 )
         except Exception:
             pass
@@ -9284,14 +9283,13 @@ def write_html_file(
         try:
             from memslides.tools.template_tools import (
                 is_layout_queried as _a3_is_queried,
-                get_queried_layouts as _a3_get_queried,
             )
 
             _builder_a3, _skill_a3 = _ensure_template_context()
             if _builder_a3 and _skill_a3:
                 _layout_a3 = _infer_layout_from_html(content)
                 if _layout_a3 and _a3_is_queried(_layout_a3):
-                    compliance_note += f"\n✅ 布局 `{_layout_a3}` 已通过 query_slide_layout 查询。"
+                    compliance_note += f"\nLayout `{_layout_a3}` was queried successfully with query_slide_layout."
         except Exception:
             pass
 
@@ -9550,7 +9548,7 @@ def insert_slide(
                 "</style>\n"
                 "</head>\n"
                 "<body>\n"
-                '<div class="hint">新插入页面（占位）。请用 write_new_slide_file 填充最终内容。</div>\n'
+                '<div class="hint">New slide placeholder. Use write_new_slide_file to fill in the final content.</div>\n'
                 "</body>\n"
                 "</html>\n"
             )
@@ -13324,8 +13322,8 @@ async def inspect_slide(
 
             if _layout and not is_layout_queried(_layout):
                 compliance_text += (
-                    f"\n⚠️ MUST_QUERY: 当前页布局 `{_layout}` 未通过 query_slide_layout 查询。"
-                    f"请调用 query_slide_layout(\"{_layout}\") 获取元素规范后重新生成。\n"
+                    f"\nMUST_QUERY: The current slide layout `{_layout}` was not queried with query_slide_layout. "
+                    f"Call query_slide_layout(\"{_layout}\") to get the element contract before regenerating the slide.\n"
                 )
             _issues = _checker.check(html_text, _layout, file_path=html_path)
             if _issues:
@@ -13497,7 +13495,7 @@ async def inspect_slide(
         _slide_unchanged_count[str(html_path)] = 0
     if structure_issues:
         summary_parts.append(
-            "\n💡 HTML→PPTX 虽然通过，但当前页仍有结构/画布异常信号；请修复后再 `finalize`。"
+            "\nHTML-to-PPTX passed, but the current slide still has structural or canvas warnings; fix them before calling `finalize`."
         )
     elif persona_final_verdict == "retry_required" and not defer_persona_repair:
         summary_parts.append(

@@ -40,7 +40,7 @@ system:
 
 
 instruction: |
-  # 待转换的 markdown 文件
+  # Markdown file to convert
   {{ markdown_file }}
 
   {{prompt}}

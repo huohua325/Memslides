@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "src" / "memslides"
 DOC_ROOTS = (ROOT / "README.md", ROOT / "docs", ROOT / "docker")
+ROLE_ROOT = SOURCE_ROOT / "roles"
 HAN_RANGE = ("\u4e00", "\u9fff")
 
 
@@ -73,6 +74,15 @@ def iter_doc_paths() -> list[Path]:
     return paths
 
 
+def check_yaml_comments(path: Path) -> list[str]:
+    """Check YAML comments without rejecting intentional multilingual prompts."""
+    failures: list[str] = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if line.lstrip().startswith("#") and contains_han(line):
+            failures.append(f"{path.relative_to(ROOT)}:{line_number}: Chinese YAML comment")
+    return failures
+
+
 def main() -> int:
     failures: list[str] = []
     for path in sorted(SOURCE_ROOT.rglob("*.py")):
@@ -81,6 +91,9 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         if contains_han(text):
             failures.append(f"{path.relative_to(ROOT)}: Chinese maintenance text")
+    if ROLE_ROOT.exists():
+        for path in sorted(ROLE_ROOT.glob("*.y*ml")):
+            failures.extend(check_yaml_comments(path))
 
     if failures:
         print("Source hygiene check failed:")

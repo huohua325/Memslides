@@ -2009,7 +2009,7 @@ def _rule_spec_applies_to_existing_slides(spec: dict[str, Any]) -> bool:
 
     propagation = spec.get("propagation")
     if isinstance(propagation, dict) and "apply_existing_slides" in propagation:
-        return _normalize_bool_flag(propagation.get("apply_existing_slides"))
+        return normalize_bool_flag(propagation.get("apply_existing_slides"))
 
     target = spec.get("target")
     if isinstance(target, dict):
@@ -2033,7 +2033,7 @@ def _rule_spec_applies_to_future_slides(spec: dict[str, Any]) -> bool:
 
     propagation = spec.get("propagation")
     if isinstance(propagation, dict) and "apply_future_slides" in propagation:
-        return _normalize_bool_flag(propagation.get("apply_future_slides"))
+        return normalize_bool_flag(propagation.get("apply_future_slides"))
 
     target = spec.get("target")
     if isinstance(target, dict):

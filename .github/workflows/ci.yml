@@ -1,0 +1,46 @@
+name: Repository checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Python package and development tools
+        run: python -m pip install -e ".[dev]"
+
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+
+      - name: Check source hygiene
+        run: python scripts/check_source_hygiene.py
+
+      - name: Run Python tests
+        run: pytest -q
+
+      - name: Run Ruff
+        run: ruff check src tests
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Check PPTX export runtime
+        run: npm run check:pptx-export

@@ -241,7 +241,7 @@ class StyleExtractor:
         typography = Typography()
         try:
             from pptx import Presentation
-            from pptx.util import Pt, Emu
+            from pptx.util import Pt
             prs = Presentation(str(pptx_path))
 
             title_fonts: list[str] = []
@@ -335,7 +335,6 @@ class StyleExtractor:
         spacing = {}
         try:
             from pptx import Presentation
-            from pptx.util import Emu
             prs = Presentation(str(pptx_path))
 
             margins: list[float] = []  # in pt
@@ -666,10 +665,8 @@ class StyleExtractor:
 
 
                 try:
-                    from lxml import etree
                     bg_xml = bg._element
 
-                    ns = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
                     for srgb in bg_xml.iter('{http://schemas.openxmlformats.org/drawingml/2006/main}srgbClr'):
                         val = srgb.get('val')
                         if val and len(val) == 6:

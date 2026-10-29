@@ -21,7 +21,7 @@ from memslides.utils.constants import (
     PIXEL_MULTIPLE,
     RETRY_TIMES,
 )
-from memslides.utils.log import debug, error, info, logging_openai_exceptions
+from memslides.utils.log import debug, info, logging_openai_exceptions
 
 LLM_KEY_FALLBACKS: dict[str, str] = {
     "modify_agent": "design_agent",

@@ -27,7 +27,7 @@ from memslides.runtime.support import persist_live_wm_snapshot_from_orchestrator
 if TYPE_CHECKING:
     from .collect.artifact_dumper import ArtifactDumper
     from .collect.collector import MemoryCollector
-    from .extract.chain_experience_extractor import ChainExperienceExtractor
+    from .core.models import ExperienceTrace
     from .extract.chain_segmenter import ChainSegmenter
     from .extract.episode_extractor import EpisodeExtractor
     from .extract.preference_extractor import PreferenceExtractor
@@ -1910,7 +1910,6 @@ class MemoryOrchestrator:
         cluster_total: int = 0,
     ) -> "ExperienceTrace | None":
         """Implementation details."""
-        from .core.models import ExperienceTrace
 
         if not experiences:
             return None

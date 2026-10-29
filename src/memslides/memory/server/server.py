@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 
 from ..core.db import SQLiteBackend
-from ..core.embedding import get_embedding_func
 from ..core.models import ExperienceTrace, infer_task_experience_category
 
 try:
@@ -58,43 +57,6 @@ async def _ensure_initialized():
         await _db.init_schema()
 
         if STAGE2_AVAILABLE:
-            embedding_func = get_embedding_func(
-                provider=os.environ.get("MEMSLIDES_EMBEDDING_PROVIDER", "openai-compatible"),
-                model=os.environ.get("MEMSLIDES_EMBEDDING_MODEL", "BAAI/bge-m3"),
-                model_name=os.environ.get("MEMSLIDES_EMBEDDING_MODEL", "BAAI/bge-m3"),
-                api_model=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_API_MODEL")
-                    or os.environ.get("MEMSLIDES_EMBEDDING_MODEL", "BAAI/bge-m3")
-                ),
-                api_key=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_API_KEY")
-                    or os.environ.get("SILICONFLOW_API_KEY")
-                    or os.environ.get("MEMSLIDES_OPENAI_API_KEY")
-                ),
-                api_base_url=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_API_BASE_URL")
-                    or os.environ.get("MEMSLIDES_EMBEDDING_BASE_URL")
-                    or os.environ.get("SILICONFLOW_BASE_URL")
-                    or os.environ.get("MEMSLIDES_OPENAI_BASE_URL")
-                ),
-                base_url=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_BASE_URL")
-                    or os.environ.get("SILICONFLOW_BASE_URL")
-                    or os.environ.get("MEMSLIDES_OPENAI_BASE_URL")
-                ),
-                api_fallback_model=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_FALLBACK_API_MODEL")
-                    or os.environ.get("MEMSLIDES_EMBEDDING_FALLBACK_MODEL")
-                ),
-                api_fallback_base_url=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_FALLBACK_API_BASE_URL")
-                    or os.environ.get("MEMSLIDES_EMBEDDING_FALLBACK_BASE_URL")
-                ),
-                api_fallback_api_key=(
-                    os.environ.get("MEMSLIDES_EMBEDDING_FALLBACK_API_KEY")
-                    or os.environ.get("OPENROUTER_API_KEY")
-                ),
-            )
             _episode_store = EpisodeStore(_db)
             _exp_writer = ExperienceTraceWriter(db=_db)
             logger.info("MemSlides memory MCP server initialized (Stage 2): %s", db_path)

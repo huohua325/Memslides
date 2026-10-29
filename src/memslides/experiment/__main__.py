@@ -18,7 +18,7 @@ from memslides.experiment.profile_holistic_v6 import (
 )
 from memslides.experiment.profile_table import build_profile_table_report
 from memslides.experiment.runner import ExperimentSuiteRunner, summarize_suite_output
-from memslides.experiment.seed import BUILTIN_PERSONAS, get_user_model_profile
+from memslides.experiment.seed import BUILTIN_PERSONAS
 from memslides.experiment.tool_memory_table import build_tool_memory_report
 from memslides.utils.constants import DEFAULT_CACHE_BASE
 

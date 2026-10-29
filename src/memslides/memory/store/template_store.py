@@ -9,9 +9,10 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from ..core.models import TemplateUsageRecord
 
 from ..core.template_models import (
     TemplateProfile,
@@ -19,6 +20,8 @@ from ..core.template_models import (
     ContentPatterns,
     TemplateSemanticModel,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateStore:

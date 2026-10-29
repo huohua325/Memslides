@@ -22,7 +22,7 @@ from memslides.templates.semantic_access import (
 if TYPE_CHECKING:
     from ..core.template_models import (
         ColorPalette, ContentPatterns,
-        DesignConstraints, TemplateProfile, Typography,
+        TemplateProfile, Typography,
     )
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class DesignPlanGenerator:
     def generate(self, output_path: Path) -> Path:
         """Implementation details."""
         from ..core.template_models import (
-            ColorPalette, ContentPatterns,
+            ContentPatterns,
             DesignConstraints, Typography,
         )
 

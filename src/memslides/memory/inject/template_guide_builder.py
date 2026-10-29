@@ -15,7 +15,6 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from memslides.templates.semantic_access import (
     canonical_layout_views,
     resolve_canonical_layout,
-    semantic_decorative_system,
 )
 from memslides.templates.layout_planner import TemplateLayoutPlanner
 from memslides.templates.quality import assess_template_quality, effective_template_palette

@@ -297,9 +297,9 @@ async def _load_local_embedding_model(model_name: str = "BAAI/bge-m3", device: s
                     raise RuntimeError(
                         f"Failed to load local embedding model '{model_name}': {e}\n"
                         f"Tips:\n"
-                        f"  1. 国内网络请设置: export HF_ENDPOINT=https://hf-mirror.com\n"
-                        f"  2. 手动下载: huggingface-cli download {model_name}\n"
-                        f"  3. 或配置 API fallback: memslides.yaml → memory.embedding.api_base_url"
+                        f"  1. For restricted networks, set: export HF_ENDPOINT=https://hf-mirror.com\n"
+                        f"  2. Download manually: huggingface-cli download {model_name}\n"
+                        f"  3. Or configure the API fallback: memslides.yaml -> memory.embedding.api_base_url"
                     ) from e
                 logger.info("Local embedding model loaded on %s", resolved_device)
     return _local_embedding_models[model_key]
@@ -535,7 +535,8 @@ def get_embedding_func(
         "sentence-transformers-local-first",
         "local-api-fallback",
     }:
-        func = lambda texts: local_first_embed(texts, **kwargs)
+        def func(texts: list[str]) -> np.ndarray:
+            return local_first_embed(texts, **kwargs)
         provider_name = "local-first"
     elif normalized_provider in {
         "bge-m3",
@@ -546,7 +547,8 @@ def get_embedding_func(
         "sentence-transformer",
         "local-sentence-transformers",
     }:
-        func = lambda texts: local_sentence_transformer_embed(texts, **kwargs)
+        def func(texts: list[str]) -> np.ndarray:
+            return local_sentence_transformer_embed(texts, **kwargs)
         provider_name = "local"
     elif normalized_provider in {
         "openai",
@@ -556,7 +558,8 @@ def get_embedding_func(
         "bge-m3-openai",
         "embedding-api",
     }:
-        func = lambda texts: openai_embed(texts, **kwargs)
+        def func(texts: list[str]) -> np.ndarray:
+            return openai_embed(texts, **kwargs)
         provider_name = "openai" if normalized_provider == "openai" else "openai-compatible"
     else:
         raise ValueError(f"Unknown embedding provider: {provider}")

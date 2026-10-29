@@ -227,7 +227,7 @@ def _canonical_layout_names(builder: "TemplateGuideBuilder") -> list[str]:
 
 def _layout_list_markdown(layouts: list[str]) -> str:
     if not layouts:
-        return "（当前模板没有可用布局）"
+        return "(The active template has no available layouts.)"
     return "\n".join(f"- `{name}`" for name in layouts)
 
 
@@ -252,7 +252,7 @@ def list_template_layouts() -> str:
     """Implementation details."""
     builder = _ensure_context()
     if not builder:
-        return "Error: TEMPLATE_RUNTIME_INACTIVE. 当前不是模板驱动模式，模板布局工具不可用。"
+        return "Error: TEMPLATE_RUNTIME_INACTIVE. Template layout tools require an active template-driven runtime."
     layouts = _canonical_layout_names(builder)
     return "Available canonical template layouts:\n" + _layout_list_markdown(layouts)
 
@@ -261,7 +261,7 @@ def _query_slide_layout_impl(layout_name: str) -> str:
     """Implementation details."""
     builder = _ensure_context()
     if not builder:
-        return "Error: TEMPLATE_RUNTIME_INACTIVE. 当前不是模板驱动模式，不能查询模板布局。"
+        return "Error: TEMPLATE_RUNTIME_INACTIVE. Cannot query template layouts outside template-driven mode."
     canonical_layout, available_layouts = _resolve_canonical_layout(builder, layout_name)
     if not canonical_layout:
         return (
@@ -372,7 +372,7 @@ def _query_template_shell_impl(layout_name: str) -> str:
     """
     builder = _ensure_context()
     if not builder:
-        return "Error: TEMPLATE_RUNTIME_INACTIVE. 当前不是模板驱动模式，不能查询模板壳层。"
+        return "Error: TEMPLATE_RUNTIME_INACTIVE. Cannot query the template shell outside template-driven mode."
     canonical_layout, available_layouts = _resolve_canonical_layout(builder, layout_name)
     if not canonical_layout:
         return (
@@ -507,7 +507,7 @@ def recommend_template_layout(page_brief: str) -> str:
     """
     builder = _ensure_context()
     if not builder:
-        return "Error: TEMPLATE_RUNTIME_INACTIVE. 当前不是模板驱动模式，不能推荐模板布局。"
+        return "Error: TEMPLATE_RUNTIME_INACTIVE. Cannot recommend template layouts outside template-driven mode."
 
     payload: dict[str, Any]
     try:
@@ -556,7 +556,7 @@ def query_layout_geometry(layout_name: str) -> str:
     """Implementation details."""
     builder = _ensure_context()
     if not builder:
-        return "Error: TEMPLATE_RUNTIME_INACTIVE. 当前不是模板驱动模式，不能查询模板几何。"
+        return "Error: TEMPLATE_RUNTIME_INACTIVE. Cannot query template geometry outside template-driven mode."
     canonical_layout, available_layouts = _resolve_canonical_layout(builder, layout_name)
     if not canonical_layout:
         return (
@@ -600,8 +600,8 @@ def _geometry_from_file(
         if not editable_slots:
             return None
 
-        sections = [f"## 精确几何信息：{layout.name}", ""]
-        sections.append("| # | 槽位 | 角色 | 类型 | 左% | 上% | 宽% | 高% | 容量提示 |")
+        sections = [f"## Exact geometry: {layout.name}", ""]
+        sections.append("| # | Slot | Role | Type | Left % | Top % | Width % | Height % | Capacity hint |")
         sections.append("|---|------|------|------|-----|-----|-----|-----|----------|")
         for i, slot in enumerate(editable_slots, 1):
             geo = slot.geometry or {}
@@ -623,7 +623,7 @@ def query_image_info(image_name: str) -> str:
     """Implementation details."""
     builder = _ensure_context()
     if not builder:
-        return "Error: TEMPLATE_RUNTIME_INACTIVE. 当前不是模板驱动模式，不能查询模板图片。"
+        return "Error: TEMPLATE_RUNTIME_INACTIVE. Cannot query template images outside template-driven mode."
 
     image_stats = builder.skill.image_stats or {}
 
@@ -640,8 +640,8 @@ def query_image_info(image_name: str) -> str:
 
     if not stats:
         available = list(image_stats.keys())[:5]
-        hint = "\n".join(f"- `{k}`" for k in available) if available else "无图片数据"
-        return f"❌ 图片 `{image_name}` 不存在。\n\n可用图片：\n{hint}"
+        hint = "\n".join(f"- `{k}`" for k in available) if available else "No image data."
+        return f"Error: IMAGE_NOT_FOUND. Image `{image_name}` does not exist.\n\nAvailable images:\n{hint}"
 
     appear_times = stats.get("appear_times", 1)
     relative_area = stats.get("relative_area", 0)
@@ -649,27 +649,27 @@ def query_image_info(image_name: str) -> str:
 
 
     is_decorative = (appear_times >= 3 and relative_area < 5) or (appear_times >= 2 and relative_area > 20)
-    img_type = "装饰图（不可替换）" if is_decorative else "内容图（可替换）"
+    img_type = "decorative (do not replace)" if is_decorative else "content (replaceable)"
 
     lines = [
-        f"## 图片信息：{image_name}",
+        f"## Image information: {image_name}",
         "",
-        f"- **尺寸**: {size[0]} × {size[1]}",
-        f"- **出现次数**: {appear_times}",
-        f"- **相对面积**: {relative_area:.1f}%",
-        f"- **类型**: {img_type}",
+        f"- **Dimensions**: {size[0]} x {size[1]}",
+        f"- **Occurrences**: {appear_times}",
+        f"- **Relative area**: {relative_area:.1f}%",
+        f"- **Type**: {img_type}",
     ]
 
     if stats.get("slide_numbers"):
-        lines.append(f"- **出现页码**: {stats['slide_numbers']}")
+        lines.append(f"- **Slide numbers**: {stats['slide_numbers']}")
 
 
     template_dir = getattr(builder.skill, "template_dir", "") or ""
     if template_dir:
         img_path = Path(template_dir) / "images" / image_name
         if img_path.exists():
-            lines.append(f"- **文件路径**: `{img_path}`")
+            lines.append(f"- **File path**: `{img_path}`")
         else:
-            lines.append(f"- **文件路径**: ❌ 文件不存在 ({img_path})")
+            lines.append(f"- **File path**: file does not exist ({img_path})")
 
     return "\n".join(lines)

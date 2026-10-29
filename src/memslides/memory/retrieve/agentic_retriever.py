@@ -7,11 +7,10 @@ import json
 import logging
 from typing import Any
 
+from ..prompts import MULTI_QUERY_PROMPT
+
 logger = logging.getLogger(__name__)
 
-
-
-from ..prompts import MULTI_QUERY_PROMPT
 
 
 _SUFFICIENCY_SCORE_THRESHOLD = 0.85

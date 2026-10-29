@@ -420,7 +420,6 @@ class MemorySystem:
 
         # ── Stage 2 Phase 2/3: Advanced stores + components ──
         preference_store_obj = None
-        preference_extractor_obj = None
         experience_retriever_obj = None
         memory_consolidator_obj = None
 

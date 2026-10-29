@@ -7,7 +7,7 @@ import logging
 from typing import Any
 from uuid import uuid4
 
-from ..core.models import ChainSegment, ToolChain, make_chain_signature
+from ..core.models import ChainSegment, make_chain_signature
 from ..prompts.chain_prompts import CHAIN_SEGMENTATION_PROMPT
 from .llm_compat import call_llm_with_prompt
 

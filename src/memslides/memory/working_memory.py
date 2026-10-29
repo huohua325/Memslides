@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 from memslides.memory.core.models import TempPreference, RoundExperience, DesignEpisode
 from memslides.memory.components import ToolChainBuffer, JobHistory
+
+if TYPE_CHECKING:
+    import numpy as np
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -90,33 +90,33 @@ def extract_layout_stats(html_path: Path, shrink_attempts: int = 3, scale_factor
 
 def format_overflow_lesson(stats: SlideLayoutStats) -> str:
     """Implementation details."""
-    parts = [f"{stats.slide_name} 内容超出边界:"]
+    parts = [f"{stats.slide_name} content exceeds the slide boundary:"]
 
 
     if stats.char_count > 500:
-        parts.append(f"文字{stats.char_count}字(建议<500)")
+        parts.append(f"{stats.char_count} characters (recommended <500)")
     else:
-        parts.append(f"文字{stats.char_count}字")
+        parts.append(f"{stats.char_count} characters")
 
 
     if stats.image_count > 0:
-        parts.append(f"{stats.image_count}张图")
+        parts.append(f"{stats.image_count} images")
 
 
     if stats.font_size_max > 0:
-        parts.append(f"字号{stats.font_size_min:.0f}-{stats.font_size_max:.0f}pt")
+        parts.append(f"font size {stats.font_size_min:.0f}-{stats.font_size_max:.0f}pt")
 
 
     extras = []
     if stats.has_table:
-        extras.append("含表格")
+        extras.append("contains a table")
     if stats.has_code_block:
-        extras.append("含代码块")
+        extras.append("contains a code block")
     if extras:
         parts.append(",".join(extras))
 
 
-    parts.append(f"缩放{stats.shrink_attempts}次(scale={stats.final_scale})仍溢出")
+    parts.append(f"{stats.shrink_attempts} shrink attempts (scale={stats.final_scale}) still overflow")
 
     return " | ".join(parts)
 
@@ -126,18 +126,18 @@ def format_workaround(stats: SlideLayoutStats) -> str:
     suggestions = []
 
     if stats.char_count > 600:
-        suggestions.append("减少单页文字量至500字以内")
+        suggestions.append("Reduce slide text to 500 characters or fewer")
     if stats.image_count > 2:
-        suggestions.append("减少图片数量或缩小图片尺寸")
+        suggestions.append("Reduce the image count or image dimensions")
     if stats.font_size_max > 24:
-        suggestions.append(f"降低最大字号(当前{stats.font_size_max:.0f}pt→18pt)")
+        suggestions.append(f"Reduce the maximum font size (currently {stats.font_size_max:.0f}pt; target 18pt)")
     if stats.has_table:
-        suggestions.append("简化表格或分页展示")
+        suggestions.append("Simplify the table or split it across slides")
     if stats.has_code_block:
-        suggestions.append("代码块使用更小字号或折叠")
+        suggestions.append("Use a smaller font for code blocks or collapse them")
 
     if not suggestions:
-        suggestions.append("检查是否有绝对定位元素超出边界")
+        suggestions.append("Check whether an absolutely positioned element exceeds the slide boundary")
 
     return "；".join(suggestions)
 
@@ -161,7 +161,7 @@ async def record_layout_overflow(
 
         trace = await experience_writer._write_typed_trace(
             session_id=session_id,
-            task=f"Tool limitation: html_to_pptx — {stats.slide_name} 布局溢出",
+            task=f"Tool limitation: html_to_pptx — {stats.slide_name} layout overflow",
             tools=["html_to_pptx", "write_html_file"],
             outcome="partial",
             lesson=f"{lesson}\nWorkaround: {workaround}",
@@ -196,7 +196,6 @@ async def record_dimension_mismatch(
         slide_name = html_path.stem
 
 
-        import re
         match = re.search(
             r'HTML dimensions \(([\d.]+)" × ([\d.]+)"\).*?presentation layout \(([\d.]+)" × ([\d.]+)"\)',
             error_msg
@@ -205,20 +204,20 @@ async def record_dimension_mismatch(
             html_w, html_h = float(match.group(1)), float(match.group(2))
             layout_w, layout_h = float(match.group(3)), float(match.group(4))
             lesson = (
-                f"{slide_name} 使用了错误的 aspect ratio: "
-                f"生成 {html_w:.1f}\"×{html_h:.1f}\" (≈{html_w/html_h:.2f}:1), "
-                f"期望 {layout_w:.1f}\"×{layout_h:.1f}\" (≈{layout_w/layout_h:.2f}:1)。"
-                f"\nWorkaround: 重新生成该页，确保 HTML body 尺寸与目标 aspect ratio 匹配。"
+                f"{slide_name} uses the wrong aspect ratio: "
+                f"generated {html_w:.1f}\"x{html_h:.1f}\" ({html_w/html_h:.2f}:1), "
+                f"expected {layout_w:.1f}\"x{layout_h:.1f}\" ({layout_w/layout_h:.2f}:1)."
+                f"\nWorkaround: regenerate the slide with an HTML body matching the target aspect ratio."
             )
         else:
             lesson = (
-                f"{slide_name} 尺寸不匹配目标布局。"
-                f"\nWorkaround: 重新生成该页，确保 HTML body 尺寸与目标 aspect ratio 匹配。"
+                f"{slide_name} dimensions do not match the target layout."
+                f"\nWorkaround: regenerate the slide with an HTML body matching the target aspect ratio."
             )
 
         trace = await experience_writer._write_typed_trace(
             session_id=session_id,
-            task=f"Tool limitation: html_to_pptx — {slide_name} aspect ratio 不匹配",
+            task=f"Tool limitation: html_to_pptx — {slide_name} aspect ratio mismatch",
             tools=["html_to_pptx", "write_html_file"],
             outcome="failed",
             lesson=lesson,

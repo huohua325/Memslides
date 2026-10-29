@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from ..core.models import UserProfile, TempPreference

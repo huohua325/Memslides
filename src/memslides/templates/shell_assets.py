@@ -6,7 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from memslides.memory.core.template_models import TemplateProfile, TemplateSemanticModel
+from memslides.memory.core.template_models import TemplateProfile
 
 
 def materialize_template_shell_assets(

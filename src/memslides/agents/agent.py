@@ -29,7 +29,6 @@ from memslides.memory.extract.tool_reasoning import (
 )
 from memslides.templates.runtime_state import load_template_runtime_state
 from memslides.utils.config import (
-    LLM,
     MemSlidesConfig,
     get_json_from_response,
 )
@@ -948,7 +947,7 @@ class Agent:
                     observations.append(
                         ChatMessage(
                             role=Role.TOOL,
-                            content=f"Tool call skipped (exceeded limit). Continue in next turn.",
+                            content="Tool call skipped (exceeded limit). Continue in next turn.",
                             tool_call_id=t.id,
                             is_error=True,
                         )
@@ -1564,7 +1563,6 @@ class Agent:
 
     def _truncate_content_for_compact(self, messages: list[ChatMessage]) -> list[ChatMessage]:
         """Implementation details."""
-        import re
         import copy
 
         result = []

@@ -14,8 +14,6 @@ from ..core.models import (
     TempPreference,
     UserProfile,
     DEFAULT_INTENT,
-    classify_intent_by_keywords,
-    INTENT_CLASSIFICATION_PROMPT,
     is_template_related_preference,
 )
 from ..prompts.chain_prompts import (
@@ -424,7 +422,7 @@ class Consolidator:
         """Implementation details."""
 
 
-        from ..inject.profile_injection_router import LTM_INJECT_SOURCE, PROFILE_OVERRIDE_SOURCE
+        from ..inject.profile_injection_router import LTM_INJECT_SOURCE
         wm_prefs = [p for p in wm._temp_preferences
                      if p.source_task_id != LTM_INJECT_SOURCE]
 

@@ -204,7 +204,6 @@ class PageAssetPlanner:
     ) -> PageAssetBinding:
         title = str(getattr(brief, "title", "") or "")
         body = str(getattr(brief, "body", "") or "")
-        content_shape = str(getattr(brief, "content_shape", "") or "")
         page_purpose = str(getattr(brief, "page_purpose", "content") or "content")
         text = f"{title}\n{body}".lower()
         candidates = self._rank_candidates(text, all_assets)

@@ -14,7 +14,8 @@ try:
     from ..core.models import DesignEpisode
     from ..collect.artifact_writer import ExtractionArtifactWriter
 except ImportError:
-    import sys, pathlib
+    import sys
+    import pathlib
     _core = str(pathlib.Path(__file__).resolve().parent.parent / "core")
     _collect = str(pathlib.Path(__file__).resolve().parent.parent / "collect")
     for p in (_core, _collect):
@@ -26,7 +27,7 @@ except ImportError:
 
 # ═══════════════════════════════════════════════
 
-from ..prompts import EPISODE_EXTRACTION_PROMPT
+from ..prompts import EPISODE_EXTRACTION_PROMPT  # noqa: E402
 
 
 # ═══════════════════════════════════════════════

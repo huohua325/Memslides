@@ -120,7 +120,7 @@ def extract_hd_images(
 ) -> list[FigureInfo]:
     """Implementation details."""
     try:
-        import fitz
+        __import__("fitz")
     except ImportError:
         logger.error("PyMuPDF (fitz) not installed. Cannot extract HD images.")
         return []

@@ -6,7 +6,7 @@ import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from ..core.models import ChainExperience, ChainSegment, ToolChain
+from ..core.models import ChainExperience, ChainSegment
 
 if TYPE_CHECKING:
     from ..store.chain_store import ChainStore
