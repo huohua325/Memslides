@@ -60,8 +60,7 @@
       <strong>&#127942; MemSlides reached #1 Paper of the Day on Hugging Face Daily Papers.</strong><br>
       Thank you for the early attention from the research community. See the
       <a href="https://huggingface.co/papers/2606.17162">#1 Paper of the day</a>,
-      <a href="https://huggingface.co/spaces/huohua325/MemSlides">showcase Space</a>,
-      and <a href="https://memslides.com/">live demo website</a>.
+      and <a href="https://huggingface.co/spaces/huohua325/MemSlides">showcase Space</a>.
     </td>
   </tr>
   <tr>
