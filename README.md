@@ -75,16 +75,6 @@
       and <a href="https://huggingface.co/spaces/huohua325/MemSlides">showcase Space</a>.
     </td>
   </tr>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-06-23</strong><br>
-      <sub>Community creation</sub>
-    </td>
-    <td>
-      <strong>&#127911; A MemSlides community member created a ResearchPod episode about our paper.</strong><br>
-      <a href="https://researchpod.app/episode/afdb2aa6-91fc-4fbb-abf4-ce2fcf22d6ae">Listen on ResearchPod</a>.
-    </td>
-  </tr>
 </table>
 <!-- NEWS:END -->
 
