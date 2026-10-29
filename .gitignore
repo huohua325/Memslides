@@ -4,6 +4,9 @@
 !.env.example
 *.private.yaml
 *.private.json
+/memslides.yaml
+/.ryugi/
+/assets/video/delivery/
 
 # Local runtime state
 .memslides/
