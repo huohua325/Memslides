@@ -31,6 +31,17 @@
 <table>
   <tr>
     <td width="150" align="center">
+      <strong>2026-08-06</strong><br>
+      <sub>GitHub milestone</sub>
+    </td>
+    <td>
+      <strong>&#11088; MemSlides crossed 1,000 GitHub stars.</strong><br>
+      Thank you for helping MemSlides reach this open-source community milestone:
+      <a href="https://github.com/huohua325/Memslides/stargazers">see stargazers</a>.
+    </td>
+  </tr>
+  <tr>
+    <td width="150" align="center">
       <strong>2026-07-15</strong><br>
       <sub>Product milestone</sub>
     </td>
@@ -39,40 +50,6 @@
       Thank you for supporting the MemSlides community. Feedback is always welcome:
       <a href="https://github.com/huohua325/Memslides/issues">open an issue</a>
       or send us feedback through the demo website.
-    </td>
-  </tr>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-07-03</strong><br>
-      <sub>Product milestone</sub>
-    </td>
-    <td>
-      <strong>&#128640; The MemSlides demo website crossed 100 users.</strong><br>
-      Thank you for supporting the MemSlides community. Feedback is always welcome:
-      <a href="https://github.com/huohua325/Memslides/issues">open an issue</a>
-      or send us feedback through the demo website.
-    </td>
-  </tr>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-06-26</strong><br>
-      <sub>Product milestone</sub>
-    </td>
-    <td>
-      <strong>&#128640; The MemSlides live demo crossed 50 verified users.</strong><br>
-      Thank you to everyone trying the demo and helping us improve the personalized slide-generation workflow:
-      <a href="https://memslides.com/">try the live demo</a>.
-    </td>
-  </tr>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-06-25</strong><br>
-      <sub>GitHub milestone</sub>
-    </td>
-    <td>
-      <strong>&#11088; MemSlides crossed 100 GitHub stars.</strong><br>
-      Thank you for helping the project reach its first community star milestone:
-      <a href="https://github.com/huohua325/Memslides/stargazers">see stargazers</a>.
     </td>
   </tr>
   <tr>
