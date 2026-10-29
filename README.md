@@ -224,6 +224,23 @@ python -m memslides template induct --template-file template.pptx
   credentials.
 - External URLs and downloaded assets should be reviewed before presenting.
 
+## Citation
+
+If you find MemSlides useful, please cite our paper.
+
+```bibtex
+@misc{jin2026memslides,
+  title={MemSlides: A Hierarchical Memory Driven Agent Framework for Personalized Slide Generation with Multi-turn Local Revision},
+  author={Ye Jin and Yangyang Xu and Jun Zhu and Yibo Yang},
+  year={2026},
+  eprint={2606.17162},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  doi={10.48550/arXiv.2606.17162},
+  url={https://arxiv.org/abs/2606.17162},
+}
+```
+
 ## License
 
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
