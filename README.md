@@ -11,6 +11,7 @@
   <a href="https://memslides.github.io/"><img alt="Project Page" src="assets/badges/project-page.svg"></a>
   <a href="#demo-video"><img alt="Demo Video" src="assets/badges/demo-video.svg"></a>
   <a href="https://hub.docker.com/r/huohua325/memslides"><img alt="Docker Hub" src="assets/badges/docker-hub.svg"></a>
+  <a href="https://memslides.com/"><img alt="Website" src="assets/badges/website.svg"></a>
 </p>
 
 <p align="center">
