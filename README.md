@@ -41,13 +41,13 @@
   </tr>
   <tr>
     <td width="150" align="center">
-      <strong>2026-06-22</strong><br>
+      <strong>2026-06-24</strong><br>
       <sub>Community milestone</sub>
     </td>
     <td>
       <strong>&#127942; MemSlides reached #1 Paper of the Day on Hugging Face Daily Papers.</strong><br>
       Thank you for the early attention from the research community. See the
-      <a href="https://huggingface.co/papers/date/2026-06-22">#1 Paper of the day</a>,
+      <a href="https://huggingface.co/papers/2606.17162">#1 Paper of the day</a>,
       <a href="https://huggingface.co/spaces/huohua325/MemSlides">showcase Space</a>,
       and <a href="https://memslides.com/">live demo website</a>.
     </td>
