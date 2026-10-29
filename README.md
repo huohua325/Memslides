@@ -20,6 +20,10 @@
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-green">
 </p>
 
+<p align="center">
+  &#11088; <strong>If MemSlides is useful for your research or slide-generation workflow, please consider starring this repository to help others discover it.</strong>
+</p>
+
 ## Demo Video
 
 https://github.com/user-attachments/assets/a92ab49e-bc5c-4e90-8c0a-0f23b08a8857
