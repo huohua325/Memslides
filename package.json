@@ -1,0 +1,16 @@
+{
+  "name": "memslides-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "check:pptx-export": "node scripts/check-pptx-export-runtime.js"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.3",
+    "minimist": "^1.2.8",
+    "playwright": "1.60.0",
+    "pptxgenjs": "^4.0.1",
+    "sharp": "^0.34.5"
+  }
+}

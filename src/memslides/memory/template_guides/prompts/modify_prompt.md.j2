@@ -1,0 +1,35 @@
+## 🔧 Template Modify Constraints
+> 模板: {{ template_name }}
+
+{% if color_primary or color_surface or color_primary_text or color_inverse_text %}
+### 语义颜色规范（修改时必须遵守）
+{% if color_background %}- 壳层 background: `{{ color_background }}`{% endif %}
+{% if color_surface %}- 内容承载 surface: `{{ color_surface }}`{% endif %}
+{% if color_primary_text %}- surface 正文 primary_text: `{{ color_primary_text }}`{% endif %}
+{% if color_inverse_text %}- 壳层反白 inverse_text: `{{ color_inverse_text }}`{% endif %}
+{% if color_muted_text %}- 次级文本 muted_text: `{{ color_muted_text }}`{% endif %}
+{% if color_border %}- 边框/分隔 border: `{{ color_border }}`{% endif %}
+{% if color_primary %}- 标题/重点 primary: `{{ color_primary }}`{% endif %}
+{% if color_secondary %}- 次要元素: `{{ color_secondary }}`{% endif %}
+{% if color_accent %}- 高亮标记: `{{ color_accent }}`{% endif %}
+{% if color_text %}- 兼容 text: `{{ color_text }}`{% endif %}
+- 修改后仍需保持正文/公式/表格/caption 在高对比 surface 上可读。
+- 局部样式修改优先使用 `plan_slide_patch` 的语义规划结果，再带着 `edit_scope` / `property_group` 调用 `apply_slide_patch`；让工具根据属性组区分 text_color、background_style、layout_spacing 等修改面。
+- 若本轮用户只要求字体/文字/标题/正文颜色，planner 应推荐 `text_color`，最终 patch 优先调整目标文本的 `color` 角色（primary_text / inverse_text / muted_text / accent），不要把它理解为 background/surface/壳层色修改。
+
+{% endif %}
+{% if title_font or body_font %}
+### 字体规范
+{% if title_font %}- 标题: {{ title_font }} {{ title_size }}pt{% endif %}
+{% if body_font %}- 正文: {{ body_font }} {{ body_size }}pt{% endif %}
+
+{% endif %}
+{% if layout_summary_table %}
+### 可用布局（添加页面时参考）
+{{ layout_summary_table }}
+{% endif %}
+{% if current_layout_detail %}
+
+### 当前页面布局详情
+{{ current_layout_detail }}
+{% endif %}

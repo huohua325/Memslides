@@ -1,0 +1,140 @@
+# Packaged public configuration.
+# Put private keys in environment variables, a local .env file, or a
+# separate YAML passed with --config. Do not commit local credential files.
+
+offline_mode: false
+context_folding: true
+
+research_agent:
+  base_url: "${MEMSLIDES_RESEARCH_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_RESEARCH_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_RESEARCH_API_KEY:-missing-api-key}"
+  client_kwargs:
+    timeout: 300.0
+    max_retries: 1
+
+design_agent:
+  base_url: "${MEMSLIDES_DESIGN_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_DESIGN_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_DESIGN_API_KEY:-missing-api-key}"
+  is_multimodal: true
+  client_kwargs:
+    timeout: 300.0
+    max_retries: 1
+
+modify_agent:
+  base_url: "${MEMSLIDES_MODIFY_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_MODIFY_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_MODIFY_API_KEY:-missing-api-key}"
+  is_multimodal: true
+  client_kwargs:
+    timeout: 300.0
+    max_retries: 1
+
+reviewer_agent:
+  base_url: "${MEMSLIDES_REVIEW_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_REVIEW_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_REVIEW_API_KEY:-missing-api-key}"
+  is_multimodal: true
+  client_kwargs:
+    timeout: 300.0
+    max_retries: 1
+
+long_context_model:
+  base_url: "${MEMSLIDES_LONG_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_LONG_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_LONG_API_KEY:-missing-api-key}"
+  max_concurrent: 4
+  client_kwargs:
+    timeout: 300.0
+    max_retries: 1
+
+fast_model:
+  base_url: "${MEMSLIDES_FAST_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_FAST_MODEL:-gpt-4.1-mini}"
+  api_key: "${MEMSLIDES_FAST_API_KEY:-missing-api-key}"
+  max_concurrent: 4
+  client_kwargs:
+    timeout: 180.0
+    max_retries: 1
+
+balanced_model:
+  base_url: "${MEMSLIDES_BALANCED_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_BALANCED_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_BALANCED_API_KEY:-missing-api-key}"
+  max_concurrent: 4
+  client_kwargs:
+    timeout: 300.0
+    max_retries: 1
+
+vision_model:
+  base_url: "${MEMSLIDES_VISION_BASE_URL:-https://api.openai.com/v1}"
+  model: "${MEMSLIDES_VISION_MODEL:-gpt-4.1}"
+  api_key: "${MEMSLIDES_VISION_API_KEY:-missing-api-key}"
+  max_concurrent: 4
+  is_multimodal: true
+  client_kwargs:
+    timeout: 180.0
+    max_retries: 1
+
+tool_memory:
+  max_raw_chains_per_key: 20
+  max_ltm_experiences_per_tool: 10
+
+visual_assets:
+  default_font_family: "Arial, 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
+  font_dirs: []
+
+memory:
+  enabled: true
+  memory_v2: true
+  global_db_dir: "${MEMSLIDES_MEMORY_GLOBAL_DB_DIR:-}"
+  artifact_trace: true
+  llm_ref: "design_agent"
+  llm:
+    user_message_analyze: "fast_model"
+    intent_classify: "fast_model"
+    experience_extract: "balanced_model"
+    tool_constraint: "balanced_model"
+    profile_injection: "fast_model"
+    style_classify: "balanced_model"
+    episode_extract: "balanced_model"
+    memory_consolidation: "balanced_model"
+    multi_query: "design_agent"
+    template_analyze: "design_agent"
+  embedding:
+    provider: "${MEMSLIDES_EMBEDDING_PROVIDER:-openai-compatible}"
+    model: "${MEMSLIDES_EMBEDDING_MODEL:-text-embedding-3-small}"
+    dim: "${MEMSLIDES_EMBEDDING_DIM:-1536}"
+    device: "auto"
+    batch_size: 32
+    max_length: 512
+    cache_enabled: true
+    cache_size: 512
+    api_model: "${MEMSLIDES_EMBEDDING_API_MODEL:-text-embedding-3-small}"
+    api_base_url: "${MEMSLIDES_EMBEDDING_API_BASE_URL:-https://api.openai.com/v1}"
+    base_url: "${MEMSLIDES_EMBEDDING_BASE_URL:-https://api.openai.com/v1}"
+    api_fallback_model: ""
+    api_fallback_base_url: ""
+    api_fallback_api_key: ""
+    api_key: "${MEMSLIDES_EMBEDDING_API_KEY:-}"
+  db_path: ".memory/memory.db"
+  vector_db_path: ".memory/vectors.json"
+  params_store_dir: ".memory/params"
+  gc:
+    max_rules_per_user: 200
+    decay_factor: 0.95
+    min_priority: 0.01
+    max_experiences_per_user: 500
+    experience_max_age_days: 90
+  cold_start_template: "tech_modern"
+  modules:
+    episode_extraction: true
+    foresight_detection: true
+    user_message_analysis: true
+    tool_knowledge_learning: true
+    profile_update: false
+    rule_induction: false
+    preference_extraction: true
+    offline_update: true
+    memory_compaction: true

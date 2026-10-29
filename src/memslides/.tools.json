@@ -1,0 +1,1354 @@
+{
+  "server_tools": {
+    "memslides_deck_tools": [
+      "todo_create",
+      "todo_update",
+      "todo_list",
+      "write_markdown_file",
+      "write_html_file",
+      "write_new_slide_file",
+      "delete_slide",
+      "insert_slide",
+      "list_files",
+      "read_file",
+      "read_slide_snapshot",
+      "apply_slide_patch",
+      "scan_slide_index",
+      "batch_update_css_rule",
+      "batch_update_semantic_style",
+      "patch_semantic_inline_style",
+      "list_memory_artifacts",
+      "thinking",
+      "finalize",
+      "inspect_slide",
+      "inspect_manuscript",
+      "explore_workspace_images",
+      "list_template_layouts",
+      "recommend_template_layout"
+    ],
+    "memslides_asset_tools": [
+      "image_caption",
+      "document_summary"
+    ],
+    "memslides_template_tools": [
+      "list_template_layouts",
+      "query_slide_layout",
+      "recommend_template_layout",
+      "query_layout_geometry",
+      "query_image_info"
+    ],
+    "memslides_document_tools": [
+      "convert_to_markdown",
+      "list_document_figures"
+    ],
+    "memslides_memory_tools": [
+      "search_experiences",
+      "search_episodes",
+      "remember_lesson"
+    ],
+    "memslides_search_tools": [
+      "search_web",
+      "search_images",
+      "fetch_url",
+      "download_file",
+      "search_papers",
+      "get_paper_authors",
+      "get_scholar_details"
+    ]
+  },
+  "tool_specs": [
+    {
+      "type": "function",
+      "function": {
+        "name": "todo_create",
+        "description": "Create a new todo item for TASK PLANNING ONLY.\n\n⚠️ USAGE RESTRICTIONS:\n- ONLY use to list slides to be processed or track completion progress\n- NEVER store \"waiting for user reply\" or questions — todos are INVISIBLE to users\n- NEVER use as a substitute for asking the user a question\n- If you need user confirmation, use text response instead\n\nArgs:\n    todo_content (str): Round planning content (e.g., \"Process slide_01.html\")\n\nReturns:\n    str: Confirmation message with the created todo's ID",
+        "parameters": {
+          "properties": {
+            "todo_content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "todo_content"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "todo_update",
+        "description": "Update an existing todo item's content or status (ROUND PLANNING ONLY).\n\n⚠️ USAGE RESTRICTIONS: Same as todo_create — ONLY for tracking round progress,\nNEVER for user interaction or storing questions.\n\nArgs:\n    idx (int): The index of the todo item to update\n    todo_content (str, optional): New round planning content\n    status (Literal[\"completed\", \"in_progress\", \"skipped\"], optional): New status\n\nReturns:\n    str: Confirmation message with the updated todo's ID",
+        "parameters": {
+          "properties": {
+            "idx": {
+              "type": "integer"
+            },
+            "todo_content": {
+              "default": null,
+              "type": "string"
+            },
+            "status": {
+              "default": null,
+              "enum": [
+                "completed",
+                "in_progress",
+                "skipped"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "idx"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "todo_list",
+        "description": "Get the current todo list or check if all todos are completed.\n\nReturns:\n    str | list[Todo]: Either a completion message if all todos are done/skipped,\n                     or the current list of todo items",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "write_markdown_file",
+        "description": "Write markdown content to a file.\n\nIn Researcher/TemplatePlanner stages, this is commonly used for manuscripts.\nIn DeckDesigner stage, markdown writes are reserved for `design_plan.md` only.\n\nArgs:\n    file_path: The absolute path where the markdown file should be saved (must end with .md)\n    content: The markdown content to write to the file\n\nReturns:\n    Success message with the file path, or error message if failed",
+        "parameters": {
+          "properties": {
+            "file_path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "file_path",
+            "content"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "write_html_file",
+        "description": "Write HTML content to a file.\n\nFor new slides, this remains the primary write path.\nFor existing canonical slides (`slide_<n>.html`), the default editing path is\n`read_slide_snapshot` + `apply_slide_patch`. Full-file overwrite is reserved\nfor corrupted-slide recovery or slides whose current on-disk HTML has already\nfailed `inspect_slide`, and is only allowed when `force_regenerate=true`\nand `expected_hash` matches the current on-disk slide HTML.\n\nArgs:\n    file_path: The absolute path where the HTML file should be saved (must end with .html)\n    content: The HTML content to write to the file\n    force_regenerate: Allow full overwrite of an existing canonical slide only when\n                     paired with a matching `expected_hash`\n    expected_hash: Current SHA256 hash of the on-disk HTML for controlled regenerate\n\nReturns:\n    Success message with the file path, or error message if failed",
+        "parameters": {
+          "properties": {
+            "file_path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "force_regenerate": {
+              "default": false,
+              "type": "boolean"
+            },
+            "expected_hash": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "file_path",
+            "content"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "write_new_slide_file",
+        "description": "Write a brand-new slide HTML file.\n\nStructural modify turns use this instead of the general write_html_file tool.\nThe target file must not already exist.",
+        "parameters": {
+          "properties": {
+            "file_path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "file_path",
+            "content"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "delete_slide",
+        "description": "Delete a slide HTML file and optionally renumber subsequent slides to maintain\ncontinuous numbering (e.g., after deleting slide_06.html, slide_07→slide_06, etc.).\n\nUse this when the user requests to remove a slide entirely from the presentation.\nAfter deletion, the total slide count will decrease by one.\n\nArgs:\n    slide_path: Path to the slide HTML file to delete (e.g., \"outputs/slide_06.html\"\n                or the legacy alias \"slides/slide_06.html\").\n    renumber: If True (default), renumber all subsequent slides to maintain\n              continuous numbering. If False, only delete the file without renumbering.\n\nReturns:\n    Success message with details of deleted and renamed files, or error message.\n\nExample:\n    delete_slide(\"outputs/slide_06.html\")\n    # Deletes slide_06.html and renames slide_07→slide_06, slide_08→slide_07, etc.",
+        "parameters": {
+          "properties": {
+            "slide_path": {
+              "type": "string"
+            },
+            "renumber": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "slide_path"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "insert_slide",
+        "description": "Insert a new slide before or after a canonical slide and renumber following\ncanonical slides in one operation.\n\nArgs:\n    target_slide: Existing canonical slide path, e.g. \"outputs/slide_06.html\".\n    position: \"before\" inserts at target index, \"after\" inserts at index+1.\n    content: Optional HTML content for the new slide. If empty, a placeholder\n             slide will be created and can be updated later with write_new_slide_file.\n\nReturns:\n    Success message with inserted path, rename details, and remaining counts.",
+        "parameters": {
+          "properties": {
+            "target_slide": {
+              "type": "string"
+            },
+            "position": {
+              "default": "after",
+              "enum": [
+                "before",
+                "after"
+              ],
+              "type": "string"
+            },
+            "content": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "target_slide"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_files",
+        "description": "List files and directories in the workspace. Useful for discovering available\nimages, slides, attachments, and other resources.\n\nArgs:\n    directory: Relative path from workspace root (default: current directory).\n               Common paths: \"attachments\", \"slides\", \".\".\n    max_depth: Maximum directory depth to list (default: 2).\n\nReturns:\n    A formatted file listing with sizes, or error message.",
+        "parameters": {
+          "properties": {
+            "directory": {
+              "default": ".",
+              "type": "string"
+            },
+            "max_depth": {
+              "default": 2,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "read_file",
+        "description": "Read the content of a text file. Useful for reading existing slide HTML,\nmarkdown manuscripts, design plans, or other text files.\n\nArgs:\n    file_path: Path to the file (absolute or relative to workspace).\n    offset: Line number to start reading from (0-indexed, default: 0).\n    limit: Maximum number of lines to read (default: 500).\n\nReturns:\n    The file content with line numbers, or error message.",
+        "parameters": {
+          "properties": {
+            "file_path": {
+              "type": "string"
+            },
+            "offset": {
+              "default": 0,
+              "type": "integer"
+            },
+            "limit": {
+              "default": 500,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file_path"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "read_slide_snapshot",
+        "description": "Read an existing slide as a bounded editable snapshot instead of returning\nthe full HTML body to the model.\n\nThe snapshot contains a short-lived `snapshot_id`, the current `content_hash`,\na compact slide summary, and a capped list of semantic/body-block targets\nthat can be edited later via `apply_slide_patch`.",
+        "parameters": {
+          "properties": {
+            "slide_path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "slide_path"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "apply_slide_patch",
+        "description": "Apply deterministic DOM/CSS patches to an existing slide snapshot.\n\nThis is the primary editing protocol for existing canonical slides. The\nmodel provides bounded patch intent while the tool applies changes against\nthe current on-disk HTML and rejects stale writes via `expected_hash`.\n\nArgs:\n    snapshot_id: Snapshot token returned by `read_slide_snapshot`.\n    patch_ops: Non-empty ordered patch list. Each op must include an `op`\n        type plus the fields required for that op. Build these ops using\n        `target_id` values from `read_slide_snapshot`.\n    expected_hash: The exact `content_hash` returned by `read_slide_snapshot`\n        for the same slide version.",
+        "parameters": {
+          "$defs": {
+            "InsertHtmlPatchOp": {
+              "properties": {
+                "op": {
+                  "const": "insert_html",
+                  "description": "Insert a new HTML fragment near an existing anchor target.",
+                  "type": "string"
+                },
+                "anchor_target_id": {
+                  "description": "Existing target_id from read_slide_snapshot.targets used as the insertion anchor.",
+                  "type": "string"
+                },
+                "position": {
+                  "description": "Where to insert the fragment relative to the anchor target.",
+                  "enum": [
+                    "before",
+                    "after",
+                    "prepend",
+                    "append"
+                  ],
+                  "type": "string"
+                },
+                "html_fragment": {
+                  "description": "Safe HTML fragment to insert near the anchor target.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "anchor_target_id",
+                "position",
+                "html_fragment"
+              ],
+              "type": "object"
+            },
+            "MergeCssRulePatchOp": {
+              "properties": {
+                "op": {
+                  "const": "merge_css_rule",
+                  "description": "Merge CSS declarations into one existing exposed rule.",
+                  "type": "string"
+                },
+                "rule_id": {
+                  "description": "Exact rule_id returned by read_slide_snapshot.rules for the rule to edit.",
+                  "type": "string"
+                },
+                "declarations": {
+                  "description": "CSS declarations such as `max-width: 560px; gap: 24px;`.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "rule_id",
+                "declarations"
+              ],
+              "type": "object"
+            },
+            "MergeStylePatchOp": {
+              "properties": {
+                "op": {
+                  "const": "merge_style",
+                  "description": "Merge inline CSS declarations into one existing target node.",
+                  "type": "string"
+                },
+                "target_id": {
+                  "description": "Exact target_id returned by read_slide_snapshot.targets for the node to edit.",
+                  "type": "string"
+                },
+                "declarations": {
+                  "description": "CSS declarations such as `color: #1d4ed8; font-size: 40px;`.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "target_id",
+                "declarations"
+              ],
+              "type": "object"
+            },
+            "RemoveAttrPatchOp": {
+              "properties": {
+                "op": {
+                  "const": "remove_attr",
+                  "description": "Remove one allowed HTML attribute from an existing target node.",
+                  "type": "string"
+                },
+                "target_id": {
+                  "description": "Exact target_id returned by read_slide_snapshot.targets for the node to edit.",
+                  "type": "string"
+                },
+                "attr_name": {
+                  "description": "One allowed attribute name: class, style, src, alt, width, height.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "target_id",
+                "attr_name"
+              ],
+              "type": "object"
+            },
+            "RemoveNodePatchOp": {
+              "properties": {
+                "op": {
+                  "const": "remove_node",
+                  "description": "Delete one existing target node from the slide.",
+                  "type": "string"
+                },
+                "target_id": {
+                  "description": "Exact target_id returned by read_slide_snapshot.targets for the node to remove.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "target_id"
+              ],
+              "type": "object"
+            },
+            "ReplaceCssRulePatchOp": {
+              "properties": {
+                "op": {
+                  "const": "replace_css_rule",
+                  "description": "Replace the declarations of one existing exposed rule.",
+                  "type": "string"
+                },
+                "rule_id": {
+                  "description": "Exact rule_id returned by read_slide_snapshot.rules for the rule to edit.",
+                  "type": "string"
+                },
+                "declarations": {
+                  "description": "Complete replacement declarations for the rule.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "rule_id",
+                "declarations"
+              ],
+              "type": "object"
+            },
+            "ReplaceHtmlPatchOp": {
+              "properties": {
+                "op": {
+                  "const": "replace_html",
+                  "description": "Replace the inner HTML of one existing target node.",
+                  "type": "string"
+                },
+                "target_id": {
+                  "description": "Exact target_id returned by read_slide_snapshot.targets for the node to edit.",
+                  "type": "string"
+                },
+                "html_fragment": {
+                  "description": "Safe HTML fragment to place inside the target node.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "target_id",
+                "html_fragment"
+              ],
+              "type": "object"
+            },
+            "ReplaceTextPatchOp": {
+              "properties": {
+                "op": {
+                  "const": "replace_text",
+                  "description": "Replace the plain-text content inside one existing target node.",
+                  "type": "string"
+                },
+                "target_id": {
+                  "description": "Exact target_id returned by read_slide_snapshot.targets for the node to edit.",
+                  "type": "string"
+                },
+                "text": {
+                  "description": "New plain-text content for the target node.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "target_id",
+                "text"
+              ],
+              "type": "object"
+            },
+            "SetAttrPatchOp": {
+              "properties": {
+                "op": {
+                  "const": "set_attr",
+                  "description": "Set one allowed HTML attribute on an existing target node.",
+                  "type": "string"
+                },
+                "target_id": {
+                  "description": "Exact target_id returned by read_slide_snapshot.targets for the node to edit.",
+                  "type": "string"
+                },
+                "attr_name": {
+                  "description": "One allowed attribute name: class, style, src, alt, width, height.",
+                  "type": "string"
+                },
+                "value": {
+                  "description": "New attribute value.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "op",
+                "target_id",
+                "attr_name",
+                "value"
+              ],
+              "type": "object"
+            }
+          },
+          "properties": {
+            "snapshot_id": {
+              "description": "snapshot_id returned by read_slide_snapshot for the current slide state.",
+              "type": "string"
+            },
+            "patch_ops": {
+              "description": "Ordered non-empty list of patch operations. Never call apply_slide_patch without at least one concrete op.",
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "insert_html": "#/$defs/InsertHtmlPatchOp",
+                    "merge_css_rule": "#/$defs/MergeCssRulePatchOp",
+                    "merge_style": "#/$defs/MergeStylePatchOp",
+                    "remove_attr": "#/$defs/RemoveAttrPatchOp",
+                    "remove_node": "#/$defs/RemoveNodePatchOp",
+                    "replace_css_rule": "#/$defs/ReplaceCssRulePatchOp",
+                    "replace_html": "#/$defs/ReplaceHtmlPatchOp",
+                    "replace_text": "#/$defs/ReplaceTextPatchOp",
+                    "set_attr": "#/$defs/SetAttrPatchOp"
+                  },
+                  "propertyName": "op"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/ReplaceTextPatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/ReplaceHtmlPatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/MergeStylePatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/RemoveNodePatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/InsertHtmlPatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/SetAttrPatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/RemoveAttrPatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/MergeCssRulePatchOp"
+                  },
+                  {
+                    "$ref": "#/$defs/ReplaceCssRulePatchOp"
+                  }
+                ]
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "expected_hash": {
+              "description": "content_hash returned by read_slide_snapshot for the same snapshot_id. Must match exactly.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "patch_ops",
+            "expected_hash"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "scan_slide_index",
+        "description": "Summarize the current slide deck structure for planning global modifications.\n\nReturns a JSON summary with slide file paths, detected titles, title selector\nhints, and a few lightweight structure signals. Prefer this over reading every\nslide when you need to plan batch edits across many pages.",
+        "parameters": {
+          "properties": {
+            "directory": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "batch_update_css_rule",
+        "description": "Apply the same CSS rule update across multiple slide HTML files.\n\nThis is useful for global style changes such as making all slide titles blue\nor unifying footer typography, without rewriting each entire HTML file.",
+        "parameters": {
+          "properties": {
+            "file_paths": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "selector": {
+              "type": "string"
+            },
+            "declarations": {
+              "type": "string"
+            },
+            "mode": {
+              "default": "merge",
+              "enum": [
+                "merge",
+                "replace"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "file_paths",
+            "selector",
+            "declarations"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "batch_update_semantic_style",
+        "description": "Apply one style update to a semantic slide target across multiple HTML files.\n\nUnlike `batch_update_css_rule`, this tool infers the most likely selector(s)\nper file based on real HTML/CSS structure, which is helpful when different\nslides use `h1`, `.title`, `.h1`, or `h2` for their main title.",
+        "parameters": {
+          "properties": {
+            "file_paths": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "target_kind": {
+              "enum": [
+                "slide_title",
+                "body_text",
+                "footer"
+              ],
+              "type": "string"
+            },
+            "declarations": {
+              "type": "string"
+            },
+            "mode": {
+              "default": "merge",
+              "enum": [
+                "merge",
+                "replace"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "file_paths",
+            "target_kind",
+            "declarations"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "patch_semantic_inline_style",
+        "description": "Patch inline styles on semantic target elements inside a single slide HTML file.\n\nUse this for fine-grained exception repair after a deck-level batch edit, when\nrewriting the full HTML would be unnecessarily risky.",
+        "parameters": {
+          "properties": {
+            "file_path": {
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": [
+                "slide_title",
+                "body_text",
+                "footer"
+              ],
+              "type": "string"
+            },
+            "declarations": {
+              "type": "string"
+            },
+            "scope": {
+              "default": "first",
+              "enum": [
+                "first",
+                "all"
+              ],
+              "type": "string"
+            },
+            "mode": {
+              "default": "merge",
+              "enum": [
+                "merge",
+                "replace"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "file_path",
+            "target_kind",
+            "declarations"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_memory_artifacts",
+        "description": "List memory system artifacts for debugging and observability.\n\nArgs:\n    category: Category to list. Options:\n        - \"all\": List all artifact directories\n        - \"rounds\": List round artifacts (.memory/rounds/)\n        - \"injections\": List memory injection files (.memory/injections/)\n        - \"extractions\": List legacy extraction artifacts (.memory/extractions/), if present\n        - \"params\": List parameter snapshots (.memory/params/)\n\nReturns:\n    Formatted listing of memory artifacts with sizes and timestamps.",
+        "parameters": {
+          "properties": {
+            "category": {
+              "default": "all",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "thinking",
+        "description": "This tool is for explicitly reasoning about the current round state and next actions.",
+        "parameters": {
+          "properties": {
+            "thought": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "thought"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "finalize",
+        "description": "When all tasks are finished, call this function to finalize the loop.\nArgs:\n    outcome (str): The path to the final outcome file or directory.",
+        "parameters": {
+          "properties": {
+            "outcome": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "outcome"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "inspect_slide",
+        "description": "Render and inspect a slide HTML file. Returns a rendered image (if the model\nsupports vision) plus a structured text summary of the slide's CSS properties,\nchange status, and referenced resources.\n\nUse this after writing/modifying a slide to verify your changes took effect.\nOnce the summary confirms your modifications, call `finalize` to complete.\n\nReturns:\n    list: [ImageContent, TextContent] when vision is available\n    str: Text-only summary when vision is not available, or error message",
+        "parameters": {
+          "properties": {
+            "html_file": {
+              "type": "string"
+            },
+            "aspect_ratio": {
+              "default": "16:9",
+              "enum": [
+                "16:9",
+                "4:3",
+                "A1",
+                "A2",
+                "A3",
+                "A4"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "html_file"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "inspect_manuscript",
+        "description": "Inspect the markdown manuscript for general statistics and image asset validation.\nArgs:\n    md_file (str): The path to the markdown file",
+        "parameters": {
+          "properties": {
+            "md_file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "md_file"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "explore_workspace_images",
+        "description": "Explore all usable images in the workspace, returning file metadata and dimensions.\n\nScans the workspace for image files (png, jpg, jpeg, webp), filters out small\nicons and system cache files, and returns a sorted list with path, size, and\npixel dimensions.  The agent can then call `image_caption` on specific images\nof interest.\n\nArgs:\n    min_size_kb: Minimum file size in KB to include (filters out tiny icons). Default 10.\n    max_results: Maximum number of images to return. Default 30.\n    directory: Directory to scan, relative to workspace root. Default \".\" (entire workspace).\n\nReturns:\n    dict with image list including paths, sizes, and dimensions.",
+        "parameters": {
+          "properties": {
+            "min_size_kb": {
+              "default": 10,
+              "type": "integer"
+            },
+            "max_results": {
+              "default": 30,
+              "type": "integer"
+            },
+            "directory": {
+              "default": ".",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_template_layouts",
+        "description": "列出当前 active 模板的 canonical layout names。",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "recommend_template_layout",
+        "description": "Recommend the best canonical layout for a page brief.\n\nArgs:\n    page_brief: JSON string or plain text describing page purpose, title,\n        body shape, and whether the page contains figures/tables/formulas.",
+        "parameters": {
+          "properties": {
+            "page_brief": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "page_brief"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "image_caption",
+        "description": "Generate a caption for the image, including its type and a brief description.\n\nArgs:\n    image_path: The path to the image to caption.\n\nReturns:\n    The caption and size for the image",
+        "parameters": {
+          "properties": {
+            "image_path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "image_path"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "document_summary",
+        "description": null,
+        "parameters": {
+          "properties": {
+            "task": {
+              "type": "string"
+            },
+            "document_path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "task",
+            "document_path"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_slide_layout",
+        "description": null,
+        "parameters": {
+          "properties": {
+            "layout_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "layout_name"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_layout_geometry",
+        "description": "获取指定布局的几何坐标信息（位置和尺寸百分比）。\n\n仅在需要精确控制元素位置时调用（如实现特定视觉效果）。\n\nArgs:\n    layout_name: 布局名称\n\nReturns:\n    该布局中各区域的位置和尺寸（百分比表格）",
+        "parameters": {
+          "properties": {
+            "layout_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "layout_name"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_image_info",
+        "description": "获取指定图片的详细信息（尺寸、出现次数、是否为装饰图）。\n\nArgs:\n    image_name: 图片文件名（或部分名称，支持模糊匹配）\n\nReturns:\n    图片的尺寸、出现页码、相对面积、是否为装饰图",
+        "parameters": {
+          "properties": {
+            "image_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "image_name"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "convert_to_markdown",
+        "description": null,
+        "parameters": {
+          "properties": {
+            "file_path": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "output_folder": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "filePath": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "outputFolder": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_document_figures",
+        "description": "List all figures and tables extracted from a converted document with HD image paths and metadata.\n\nArgs:\n    converted_dir: The converted document directory (containing images/ and markdown)\n\nReturns:\n    dict with figure list including paths, dimensions, and captions",
+        "parameters": {
+          "properties": {
+            "converted_dir": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "converted_dir"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_experiences",
+        "description": "检索经验轨迹",
+        "parameters": {
+          "properties": {
+            "session_id": {
+              "default": "",
+              "type": "string"
+            },
+            "task_description": {
+              "default": "",
+              "type": "string"
+            },
+            "scenarios": {
+              "default": "",
+              "type": "string"
+            },
+            "outcome": {
+              "default": "",
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_episodes",
+        "description": "检索设计情景（Stage 2）",
+        "parameters": {
+          "properties": {
+            "user_id": {
+              "type": "string"
+            },
+            "query": {
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "user_id",
+            "query"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "remember_lesson",
+        "description": "记录一条重要经验到经验库。当你发现某个可复用的工具教训或成功模式时调用此工具。\n\nArgs:\n    content: 教训内容\n    tool_name: 相关工具名（可选）\n    keywords: 检索关键词列表（可选，用于后续向量检索）\n    category: 分类标签，只能是以下之一：\n        - \"tool_error\": 直接工具失败、输入错误、前置条件不满足\n        - \"tool_misuse\": 工具选错/顺序错/角色误用导致软失败\n        - \"tool_limitation\": 工具盲区、能力边界、观测缺口\n        - \"pattern\": 成功且可复用的工作流或最佳实践\n    session_id: 会话ID（可选）",
+        "parameters": {
+          "properties": {
+            "content": {
+              "type": "string"
+            },
+            "tool_name": {
+              "default": "",
+              "type": "string"
+            },
+            "keywords": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "category": {
+              "default": "tool_error",
+              "type": "string"
+            },
+            "session_id": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "content"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_web",
+        "description": "Search the web\n\nArgs:\n    query: Search keywords\n    max_results: Maximum number of search results, default 3\n    time_range: Time range filter for search results, can be \"month\", \"year\", or None\n\nReturns:\n    dict: Dictionary containing search results",
+        "parameters": {
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "max_results": {
+              "default": 3,
+              "type": "integer"
+            },
+            "time_range": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "month",
+                    "year"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_images",
+        "description": "Search for web images",
+        "parameters": {
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "fetch_url",
+        "description": "Fetch web page content\n\nArgs:\n    url: Target URL\n    body_only: If True, return only main content; otherwise return full page, default True",
+        "parameters": {
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "body_only": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "download_file",
+        "description": "Download a file from a URL and save it to a local path.",
+        "parameters": {
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "output_file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "url",
+            "output_file"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_papers",
+        "description": "Search for academic papers using arXiv query syntax.\nBest Practice: Start with broad queries and progressively add constraints if too many results are returned.\n\nQUERY PARAMETERS (field prefixes):\n- ti: Title field, e.g., ti:\"attention mechanism\"\n- au: Author name, e.g., au:\"Hinton\"\n- abs: Abstract content, e.g., abs:\"transformer\"\n- cat: Subject category, e.g., cat:cs.AI\n\nArgs:\n    query: Search query using arXiv syntax (keywords, field searches, boolean operators)\n    max_results: Maximum number of results to return (default: 5)\n\nReturns:\n    List of papers, each containing: title, authors, abstract, published date and pdf_url",
+        "parameters": {
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "max_results": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": 5
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_paper_authors",
+        "description": "Get the authors of a paper by arxiv id.\nArgs:\n    arxiv_id: The id of the paper, must be in the format of ARXIV:2501.03936\nReturns:\n    List of authors, containing their authorId and details.",
+        "parameters": {
+          "properties": {
+            "arxiv_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "arxiv_id"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_scholar_details",
+        "description": "Get the details of a scholar by author ID.\n\nArgs:\n    author_id: The Semantic Scholar author ID of the scholar\n    paper_start_index: Starting index for paper pagination (default: 0)\n    sort_by: Sort papers by \"citationCount\" or \"year\" (default: None - no sorting)\n\nReturns:\n    Dictionary containing scholar details including:\n    - Basic info: name, hIndex, homepage, paperCount\n    - papers: List of papers with title, year, citationCount, publicationVenue, arxivId",
+        "parameters": {
+          "properties": {
+            "author_id": {
+              "type": "string"
+            },
+            "paper_start_index": {
+              "default": 0,
+              "type": "integer"
+            },
+            "sort_by": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "citationCount",
+                    "year"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "author_id"
+          ],
+          "type": "object"
+        }
+      }
+    }
+  ]
+}

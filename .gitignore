@@ -1,0 +1,55 @@
+# Local credentials and private configs
+.env
+.env.*
+!.env.example
+*.private.yaml
+*.private.json
+
+# Local runtime state
+.memslides/
+.codex_tmp/
+.playwright-browsers/
+workspace/
+/memory/
+outputs/
+cache/
+.cache/
+.memory/
+.secrets/
+.runtime_secrets/
+deck_execution_state.json
+visual_quality_report.json
+intermediate_output.json
+result.json
+metrics_summary.json
+suite_report.json
+*.pptx
+*.ppt
+*.log
+*.sqlite
+*.db
+
+# Generated media and large local files
+*.mp4
+*.mov
+*.avi
+*.webm
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
