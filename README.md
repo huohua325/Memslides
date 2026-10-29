@@ -29,49 +29,6 @@
   &#11088; <strong>If MemSlides is useful for your research or slide-generation workflow, please consider starring this repository to help others discover it.</strong>
 </p>
 
-## News
-
-<!-- NEWS:START -->
-<!-- Add new milestones as the first table row. Keep dates in YYYY-MM-DD format. -->
-<table>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-08-06</strong><br>
-      <sub>GitHub milestone</sub>
-    </td>
-    <td>
-      <strong>&#11088; MemSlides crossed 1,000 GitHub stars.</strong><br>
-      Thank you for helping MemSlides reach this open-source community milestone:
-      <a href="https://memslides.com/">visit the demo website</a>.
-    </td>
-  </tr>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-07-15</strong><br>
-      <sub>Product milestone</sub>
-    </td>
-    <td>
-      <strong>&#128640; The MemSlides demo website crossed 200 registered users.</strong><br>
-      Thank you for supporting the MemSlides community. Feedback is always welcome:
-      <a href="https://github.com/huohua325/Memslides/issues">open an issue</a>
-      or send us feedback through the demo website.
-    </td>
-  </tr>
-  <tr>
-    <td width="150" align="center">
-      <strong>2026-06-24</strong><br>
-      <sub>Community milestone</sub>
-    </td>
-    <td>
-      <strong>&#127942; MemSlides reached #1 Paper of the Day on Hugging Face Daily Papers.</strong><br>
-      Thank you for the early attention from the research community. See the
-      <a href="https://huggingface.co/papers/2606.17162">#1 Paper of the day</a>,
-      and <a href="https://huggingface.co/spaces/huohua325/MemSlides">showcase Space</a>.
-    </td>
-  </tr>
-</table>
-<!-- NEWS:END -->
-
 ## Demo Video
 
 https://github.com/user-attachments/assets/a92ab49e-bc5c-4e90-8c0a-0f23b08a8857
