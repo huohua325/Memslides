@@ -24,6 +24,27 @@
   &#11088; <strong>If MemSlides is useful for your research or slide-generation workflow, please consider starring this repository to help others discover it.</strong>
 </p>
 
+## News
+
+<!-- NEWS:START -->
+<!-- Add new milestones as the first table row. Keep dates in YYYY-MM-DD format. -->
+<table>
+  <tr>
+    <td width="150" align="center">
+      <strong>2026-06-22</strong><br>
+      <sub>Community milestone</sub>
+    </td>
+    <td>
+      <strong>&#127942; MemSlides reached #2 Paper of the Day on Hugging Face Daily Papers.</strong><br>
+      Thank you for the early attention from the research community. See the
+      <a href="https://huggingface.co/papers/2606.17162">Hugging Face paper page</a>,
+      <a href="https://huggingface.co/spaces/huohua325/MemSlides">showcase Space</a>,
+      and <a href="https://memslides.com/">live demo website</a>.
+    </td>
+  </tr>
+</table>
+<!-- NEWS:END -->
+
 ## Demo Video
 
 https://github.com/user-attachments/assets/a92ab49e-bc5c-4e90-8c0a-0f23b08a8857
