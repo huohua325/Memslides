@@ -14,6 +14,11 @@
   <a href="https://memslides.com/"><img alt="Website" src="assets/badges/website.svg"></a>
 </p>
 
+> **Official website notice:** [memslides.com](https://memslides.com/) is the
+> official MemSlides trial website. [memslides.org](https://memslides.org/) is
+> a fake website, is not operated by this project, and is not affiliated with
+> this repository.
+
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white">
   <img alt="Node" src="https://img.shields.io/badge/node-20-339933?logo=node.js&logoColor=white">
